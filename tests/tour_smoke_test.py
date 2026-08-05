@@ -293,6 +293,11 @@ def main() -> int:
     binned = list(trash.glob(f"{tid}-*")) if trash.exists() else []
     check(len(binned) == 1 and (binned[0] / "tour.json").exists(),
           "deleted tour landed in .trash with its files")
+    # The 30-day clock must start at DELETION. A plain rename keeps the dir's
+    # own mtime — roughly its creation time — which gave any tour older than
+    # the window a zero-day regret period: pruned for good at the next boot.
+    check(binned and abs(time.time() - binned[0].stat().st_mtime) < 120,
+          "trash entry is stamped with the deletion time, not the tour's age")
     status, listed = http_json("GET", "/api/tours")
     check(all(item["id"] != tid for item in listed["tours"]),
           "and nothing in .trash shows up in the list")
@@ -312,6 +317,63 @@ def main() -> int:
           "and the media rides along")
     status, _ = http_json_allow_error("POST", "/api/tours/import")
     check(status in (400, 411), "an empty import is refused, not half-created")
+
+    # Containment is "referenced anywhere in the doc": hotspot close-ups,
+    # narration, background audio all ride the round trip, not just scene
+    # panoramas. An allowlist of two fields silently dropped the rest.
+    def import_zip(build):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as z:
+            build(z)
+        req = urllib.request.Request(
+            BASE + "/api/tours/import", data=buf.getvalue(), method="POST",
+            headers={"Content-Type": "application/zip"})
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                return resp.status, json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            return exc.code, json.loads(exc.read().decode("utf-8") or "{}")
+
+    rich_doc = {
+        "name": "Round Trip", "settings": {"audio": "song.mp3"},
+        "scenes": [{"id": "s1", "name": "S", "file": "pano.jpg",
+                    "hotspots": [{"id": "h1", "type": "info", "image": "closeup.jpg"}]}],
+    }
+    status, out = import_zip(lambda z: (
+        z.writestr("tour.json", json.dumps(rich_doc)),
+        z.writestr("files/pano.jpg", b"jpg"),
+        z.writestr("files/closeup.jpg", b"jpg"),
+        z.writestr("files/song.mp3", b"mp3"),
+        z.writestr("files/unrelated.jpg", b"jpg"),
+    ))
+    check(status == 200 and out["files"] == 3,
+          "hotspot and audio media ride the import; unreferenced files do not")
+    check(http_status(f"/api/tours/{out['id']}/files/song.mp3") == 200,
+          "background audio is really there after import")
+    http_json("DELETE", f"/api/tours/{out['id']}")
+
+    # a file type a tour cannot contain is refused, and nothing is left behind
+    evil_doc = {"name": "evil", "scenes": [{"id": "s1", "name": "S", "file": "x.exe", "hotspots": []}]}
+    status, out = import_zip(lambda z: (
+        z.writestr("tour.json", json.dumps(evil_doc)),
+        z.writestr("files/x.exe", b"MZ"),
+    ))
+    check(status == 400, "an executable inside the zip is refused")
+    status, listed = http_json("GET", "/api/tours")
+    check(all(item["name"] != "evil" for item in listed["tours"]),
+          "and the refused import leaves no orphan tour in the list")
+
+    # a member that decompresses past the per-file cap is refused with cleanup:
+    # 70MB of zeros costs ~70KB compressed, which is the whole point of the cap
+    bomb_doc = {"name": "bomb", "scenes": [{"id": "s1", "name": "S", "file": "big.jpg", "hotspots": []}]}
+    status, out = import_zip(lambda z: (
+        z.writestr("tour.json", json.dumps(bomb_doc)),
+        z.writestr("files/big.jpg", b"\0" * (70 * 1024 * 1024)),
+    ))
+    check(status == 413, "a member that decompresses past the file cap is refused")
+    status, listed = http_json("GET", "/api/tours")
+    check(all(item["name"] != "bomb" for item in listed["tours"]),
+          "and the oversize import leaves no orphan either")
 
     app_path = REPO_ROOT / "tour" / "index.html"
     if app_path.exists():

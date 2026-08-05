@@ -11,7 +11,7 @@ cap, and no vendor watermark to pay to remove.
 
 Needs only **Python 3** — no libraries to install, no `setup.ps1`.
 
-Double-click **`tour.bat`**. It starts the server and opens the app. If Python
+Double-click **`start.bat`**. It starts the server and opens the app. If Python
 isn't installed it tells you where to get it. That's the whole setup.
 
 Or from a terminal:
@@ -28,9 +28,11 @@ normal tour, and deleting it sticks: it won't come back on the next start.
 Deleting anything — a tour, a scene, a hotspot — is two clicks on purpose:
 the button turns into **Confirm delete?** (a scene or hotspot just says
 **Confirm?**) and only fires if you click it again within a few seconds.
-And a deleted tour is not gone: it moves to `tours/.trash` and stays there for
-30 days. Getting one back is moving its folder up one level and restarting —
-delete was the one truly unrecoverable action in the app, and now it is not.
+And a deleted tour is not gone: it moves to `tours/.trash` and stays there
+for 30 days from the moment you deleted it. Getting one back: move its folder
+up one level into `tours/`, rename it to drop the `-20260805T…Z` timestamp the
+delete appended, and restart. Delete was the one truly unrecoverable action in
+the app, and now it is not.
 
 **Import tour**, next to *New tour*, accepts the `export.zip` this app
 produces and brings the whole tour back — scenes, defects, photos. The export
@@ -487,7 +489,7 @@ libraries are lockstepped — bump them together or not at all.
 | POST | `/api/tours` | create `{name}` |
 | GET | `/api/tours/<id>` | fetch one |
 | POST | `/api/tours/<id>` | save the whole doc |
-| DELETE | `/api/tours/<id>` | delete tour and its files |
+| DELETE | `/api/tours/<id>` | move tour to `tours/.trash` (30 days) |
 | POST | `/api/tours/<id>/duplicate` | copy tour + media |
 | POST | `/api/tours/<id>/files` | upload media (multipart `file`) |
 | GET | `/api/tours/<id>/files/<name>` | serve media |
@@ -500,8 +502,8 @@ now accepts photos it wouldn't have before. Files
 stop being served once nothing in the tour references them, but only after a
 day of going unreferenced — long enough that a just-uploaded photo is never
 collected before the editor saves a reference to it, and that undoing a scene
-deletion always finds its photo still there. Deleting a tour removes its
-files immediately.
+deletion always finds its photo still there. Deleting a tour moves it to `tours/.trash`, kept for 30 days
+from the deletion.
 
 ## Checks
 
@@ -534,7 +536,7 @@ but fires eight simultaneous saves through a barrier, all carrying the same
 implementation, which compared and wrote under two separate holds of the lock,
 that check fails on roughly two runs in five with several winners at once.
 And the export is no longer checked only by its table of contents: the zip is
-opened, the injected `window.ORBIT_STATIC_TOUR` is parsed and matched against
+opened, the injected `window.BRIDGE_STATIC_TOUR` is parsed and matched against
 the tour, every import-map target is required to be present in the zip, and
 every media file the document references is required to have been bundled.
 

@@ -3173,7 +3173,7 @@ async function renderHome() {
     try {
       const res = await fetch('/api/tours/import', { method: 'POST', body: file });
       const out = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(out.detail || 'import failed');
+      if (!res.ok || !out.id) throw new Error(out.detail || 'import failed');
       location.href = `/tour?edit=${out.id}`;
     } catch (err) {
       toast(`Could not import: ${err.message}. It wants the export.zip this app produces.`, true);
@@ -3659,8 +3659,10 @@ async function renderViewer(tourId) {
   /* One sentence, once ever, for the person a tour is handed to: they were
      not in the editor and nobody is standing beside them to say how this
      works. Gone on first interaction or after eight seconds. */
-  try {
-    if (!localStorage.getItem('bt-hint-seen')) {
+  {
+    let hintSeen = false;
+    try { hintSeen = !!localStorage.getItem('bt-hint-seen'); } catch { /* blocked = not seen */ }
+    if (!hintSeen) {
       const hint = el(`<div class="view-hint" role="status">Drag to look around &middot; click an arrow to walk through</div>`);
       stage.append(hint);
       const dismiss = () => {
@@ -3683,9 +3685,12 @@ async function renderViewer(tourId) {
       stage.addEventListener('pointermove', dragging);
       stage.addEventListener('wheel', done, { passive: true });
       window.addEventListener('keydown', done);
+      /* walking through an arrow is the other thing the sentence teaches,
+         and doing it proves the lesson landed */
+      virtualTour.addEventListener('node-changed', done, { once: true });
       setTimeout(done, 8000);
     }
-  } catch { /* storage blocked: the hint simply shows every time */ }
+  }
 
   /* little planet intro: unfold to normal view once loaded */
   let introPending = littlePlanet;
@@ -4454,6 +4459,10 @@ async function renderEditor(tourId) {
        plate on screen, and a metre grid left over from the last render would
        still be ruled at a scale this one has decided it cannot state */
     box.style.removeProperty('--plan-grid');
+    /* cleared up here with the plate, not down where it is filled: the early
+       returns below would otherwise leave chips pointing at deleted scenes */
+    const strayBoxEarly = document.getElementById('plan-strays');
+    if (strayBoxEarly) strayBoxEarly.innerHTML = '';
     const plan = planPositions(doc.scenes);
     const moved = doc.scenes.filter(s => s.plan).length;
     if (resetBtn) resetBtn.hidden = !moved;
@@ -5114,7 +5123,7 @@ async function renderEditor(tourId) {
   const turnCache = new Map();
   function fillBearings({ quiet = false } = {}) {
     const found = deriveHeadings(doc.scenes, planPositions(doc.scenes)?.pts, turnCache);
-    if (!found.length) return 0;
+    if (!found.length) return { filled: 0, withdrawn: 0 };
     for (const f of found) {
       const s = doc.scenes.find(x => x.id === f.id);
       if (!s) continue;
@@ -5136,16 +5145,21 @@ async function renderEditor(tourId) {
     scheduleSave();
     renderPlan();
     renderSceneMeta();
-    if (!quiet) {
-      const byMatch = found.filter(f => f.from === 'match').length;
+    const filled = found.filter(f => f.heading !== null);
+    const withdrawn = found.length - filled.length;
+    if (!quiet && filled.length) {
+      const byMatch = filled.filter(f => f.from === 'match').length;
       const how = [
         byMatch ? `${byMatch} carried along shared views` : '',
-        found.length - byMatch ? `${found.length - byMatch} read off the plan` : '',
+        filled.length - byMatch ? `${filled.length - byMatch} read off the plan` : '',
       ].filter(Boolean).join(', ');
-      toast(`Worked out ${found.length} bearing${found.length === 1 ? '' : 's'} — ${how}. `
+      toast(`Worked out ${filled.length} bearing${filled.length === 1 ? '' : 's'} — ${how}. `
         + 'Turn any arrow that looks wrong; Ctrl+Z undoes the lot');
     }
-    return found.length;
+    /* a withdrawal is a change worth acting on, but it is not a fill, and
+       counting it as one had the boot line congratulating itself for taking
+       bearings away */
+    return { filled: filled.length, withdrawn };
   }
 
   /* One persistent line rather than a toast per file. A toast erases the one
@@ -6673,7 +6687,10 @@ async function renderEditor(tourId) {
       return;
     }
     const type = placing;
-    const repeating = type === 'defect' && !!defectPrefill;
+    /* captured BEFORE setPlacing(null), which clears it: the spread below and
+       the re-arm both need the value from before the mode reset */
+    const prefill = type === 'defect' ? defectPrefill : null;
+    const repeating = !!prefill;
     setPlacing(null);
     /* a link is born connected to nothing: the panel that opens next is where
        you say where it goes, which is the point of placing first */
@@ -6681,7 +6698,7 @@ async function renderEditor(tourId) {
       type === 'link' ? { id: newId('h'), type: 'link', yaw, pitch, target: '', label: '' }
         : type === 'url' ? { id: newId('h'), type: 'url', yaw, pitch, url: '', label: '' }
           : type === 'defect'
-            ? { id: newId('h'), type: 'defect', yaw, pitch, code: nextDefectCode(doc.scenes), defect: DEFECT_TYPES[0], note: '', ...(defectPrefill || {}) }
+            ? { id: newId('h'), type: 'defect', yaw, pitch, code: nextDefectCode(doc.scenes), defect: DEFECT_TYPES[0], note: '', ...(prefill || {}) }
             : { id: newId('h'), type: 'info', yaw, pitch, title: '', text: '' });
     s.hotspots.push(h);
     scheduleSave();
@@ -6692,6 +6709,7 @@ async function renderEditor(tourId) {
        away whenever a note or a measurement differs. */
     if (repeating) {
       toast(`${h.code} placed — click the next spot, Esc to stop`);
+      defectPrefill = prefill; /* re-arm: setPlacing('defect') preserves it */
       setPlacing('defect');
       return;
     }
@@ -6977,12 +6995,19 @@ async function renderEditor(tourId) {
      photos know where they face, and the scene panel says where each came
      from. It only ever fills silence, never overwrites an answer. */
   {
-    const filled = fillBearings({ quiet: true });
+    const { filled, withdrawn } = fillBearings({ quiet: true });
+    const parts = [];
     if (filled) {
-      setLinkSummary(`${filled} bearing${filled === 1 ? '' : 's'} worked out on open — from photos `
-        + 'that share a view, and from the map. The arrows on the plan show them; turn any that look '
-        + 'wrong, and Ctrl+Z takes the lot back.');
+      parts.push(`${filled} bearing${filled === 1 ? '' : 's'} worked out on open — from photos `
+        + 'that share a view, and from the map. The arrows on the plan show them; turn any that '
+        + 'look wrong, and Ctrl+Z takes the lot back.');
     }
+    if (withdrawn) {
+      parts.push(`${withdrawn} earlier bearing${withdrawn === 1 ? '' : 's'} no longer had evidence behind `
+        + `${withdrawn === 1 ? 'it and was' : 'them and were'} taken back — `
+        + 'the arrows are hollow again rather than confidently wrong.');
+    }
+    if (parts.length) setLinkSummary(parts.join(' '));
   }
 }
 </script>

@@ -116,6 +116,13 @@ def save_tour_if_current(tour: dict, seen: Optional[str]) -> Optional[dict]:
         raise ValueError(f"bad tour id {tour['id']!r}")
     path = tdir / "tour.json"
     with TOURS_IO_LOCK:
+        # A delete can land between the caller's load_tour and this lock. The
+        # old code shrugged (current = {}) and then mkdir'd the folder back
+        # into existence — a ghost tour whose media was already in the trash.
+        # Gone is gone: the client gets the same 409 a stale save gets, and
+        # the tour it was editing is in tours/.trash if they want it back.
+        if not path.exists():
+            return None
         try:
             current = json.loads(path.read_text(encoding="utf-8"))
         except Exception:
@@ -352,6 +359,16 @@ def lan_addresses() -> list[str]:
                 found.append(addr)
     except OSError:
         pass
+    # The probe follows the default route, and under a full-tunnel VPN that is
+    # the tunnel — an address no phone on the site wifi can reach. The name
+    # lookup surfaces the machine's other interfaces so the real wifi address
+    # is at least in the list; the panel shows the first and names the rest.
+    try:
+        for addr in socket.gethostbyname_ex(socket.gethostname())[2]:
+            if addr and not addr.startswith("127.") and addr not in found:
+                found.append(addr)
+    except OSError:
+        pass
     return found
 
 
@@ -459,17 +476,27 @@ def handle_tour_delete(handler: "Handler", tour_id: str) -> None:
     and list_tours only reads direct children. Getting one back is a folder
     move, and docs/TOUR.md says so."""
     tdir = tour_dir(tour_id)
-    if tdir is None or not (tdir / "tour.json").exists():
+    if tdir is None:
         send_error(handler, 404, "not_found", "tour not found")
         return
     dest = trash_dir() / (tour_id + "-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"))
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        shutil.move(str(tdir), str(dest))
-    except OSError:
-        # a locked file (antivirus, an open explorer window) must not leave the
-        # tour half-moved and still listed - fall back to the old behaviour
-        shutil.rmtree(tdir, ignore_errors=True)
+    with TOURS_IO_LOCK:  # a save holds this while writing; never move mid-write
+        if not (tdir / "tour.json").exists():
+            send_error(handler, 404, "not_found", "tour not found")
+            return
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            shutil.move(str(tdir), str(dest))
+            # A rename keeps the directory's own mtime, which is roughly when
+            # the tour was CREATED — so pruning by mtime would give a tour
+            # older than the keep window a zero-day regret period, deleting it
+            # for good at the very next boot. Stamp the move time on it; the
+            # clock the prune reads must be the clock the delete set.
+            os.utime(dest, None)
+        except OSError:
+            # a locked file (antivirus, an open explorer window) must not leave
+            # the tour half-moved and still listed - fall back to erasing
+            shutil.rmtree(tdir, ignore_errors=True)
     send_json(handler, 200, {"ok": True})
 
 
@@ -634,6 +661,20 @@ def handle_tour_export(handler: "Handler", tour_id: str) -> None:
 MAX_IMPORT_BYTES = 1024 * 1024 * 1024  # a 40-photo bridge walk runs to hundreds of MB
 
 
+class _AbortImport(Exception):
+    """Carries the refusal (status, code, message) out of the copy loop, so the
+    cleanup can run BEFORE the response is sent. The first version sent the
+    error inline and cleaned up in the handler — and a client that reacted to
+    the 413 immediately could list the tours while rmtree was still chewing
+    through the half-written file, and see the orphan mid-deletion."""
+
+    def __init__(self, status: int, code: str, message: str) -> None:
+        super().__init__(message)
+        self.status = status
+        self.code = code
+        self.message = message
+
+
 def handle_tour_import(handler: "Handler") -> None:
     """The other half of export.zip: feed one back in and the tour returns -
     a laptop swap, a colleague's copy, or the backup that outlived the machine.
@@ -642,28 +683,43 @@ def handle_tour_import(handler: "Handler") -> None:
     hundreds of MB and ZipFile needs a seekable file anyway. Only files/* and
     tour.json are read out of it; index.html, vendor and anything else in the
     zip are ignored, so a tampered or merely unusual zip can add nothing the
-    server would ever serve. Every media name is flattened to its basename and
-    must already be referenced by the doc, which is the same containment the
-    upload route enforces one file at a time."""
+    server would ever serve. Every media file must be referenced by the doc,
+    carry an extension a tour can contain, and decompress inside the same
+    per-file cap the upload route enforces — plus a total budget, because a
+    zip's size on the wire says nothing about its size on disk."""
     length = int(handler.headers.get("Content-Length", 0) or 0)
     if length <= 0:
         send_error(handler, 411, "length_required", "Content-Length required")
         return
     if length > MAX_IMPORT_BYTES:
         send_error(handler, 413, "too_large", "import exceeds 1GB")
+        handler.close_connection = True  # body was never read; keep-alive would misparse it
         return
-    with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as spool:
-        remaining = length
-        while remaining > 0:
-            chunk = handler.rfile.read(min(64 * 1024, remaining))
-            if not chunk:
-                break
-            spool.write(chunk)
-            remaining -= len(chunk)
-        spool_path = Path(spool.name)
+    content_type = handler.headers.get("Content-Type", "")
+    if "zip" not in content_type and "octet-stream" not in content_type:
+        # Also the cheapest cross-origin guard this route gets: a browser can
+        # fire a no-preflight POST at localhost from any web page, but only
+        # with the simple content types — and none of those pass this test.
+        send_error(handler, 400, "bad_request", "expected a zip upload")
+        handler.close_connection = True
+        return
+    fd, spool_name = tempfile.mkstemp(suffix=".zip")
+    os.close(fd)  # reopened below; a held descriptor would block the unlink on Windows
+    spool_path = Path(spool_name)
     try:
+        # spooled INSIDE the try: a client that aborts mid-upload raises out
+        # of rfile.read, and the half-written spool must not outlive it
+        with open(spool_path, "wb") as spool:
+            remaining = length
+            while remaining > 0:
+                chunk = handler.rfile.read(min(64 * 1024, remaining))
+                if not chunk:
+                    break
+                spool.write(chunk)
+                remaining -= len(chunk)
         if remaining > 0:
             send_error(handler, 400, "truncated", "upload ended before Content-Length bytes")
+            handler.close_connection = True
             return
         try:
             zf = zipfile.ZipFile(spool_path)
@@ -673,12 +729,15 @@ def handle_tour_import(handler: "Handler") -> None:
         with zf:
             names = set(zf.namelist())
             doc = None
-            if "tour.json" in names:
+            # file_size is the member's own declared decompressed size; a lying
+            # header is caught later by the counted copy, but reading the doc
+            # is a full in-memory decompress, so the claim is checked first.
+            if "tour.json" in names and zf.getinfo("tour.json").file_size <= 8 * 1024 * 1024:
                 try:
                     doc = json.loads(zf.read("tour.json").decode("utf-8"))
                 except Exception:
                     doc = None
-            if doc is None and "index.html" in names:
+            if doc is None and "index.html" in names and zf.getinfo("index.html").file_size <= 64 * 1024 * 1024:
                 # exports made before tour.json rode along inline the doc into
                 # the page; recover it from there rather than turning them away
                 page = zf.read("index.html").decode("utf-8", "replace")
@@ -696,24 +755,55 @@ def handle_tour_import(handler: "Handler") -> None:
             tdir = tour_dir(fresh["id"])
             files_dir = tdir / "files"
             files_dir.mkdir(parents=True, exist_ok=True)
-            wanted = {sc.get("file") for sc in doc["scenes"] if isinstance(sc, dict)}
-            wanted |= {sc.get("thumb") for sc in doc["scenes"] if isinstance(sc, dict)}
-            wanted |= {(doc.get("settings") or {}).get("logo")}
-            wanted.discard(None)
+            # Containment is "referenced anywhere in the doc", the same rule
+            # prune_tour_files lives by — scene photos and thumbs, but also
+            # hotspot close-ups, narration clips, background audio, the logo.
+            # An allowlist of specific fields silently dropped all but the
+            # first two, which was data loss on the exact backup path this
+            # route exists for.
+            blob = json.dumps(doc)
+            budget = MAX_IMPORT_BYTES  # decompressed total; DEFLATE reaches 1000:1
             copied = 0
-            for name in names:
-                if not name.startswith("files/"):
-                    continue
-                base = Path(name).name
-                if not base or base != name[len("files/"):] or base not in wanted:
-                    continue
-                with zf.open(name) as src, open(files_dir / base, "wb") as out:
-                    shutil.copyfileobj(src, out, 64 * 1024)
-                copied += 1
-            doc["id"] = fresh["id"]
-            doc["created"] = fresh["created"]
-            doc["updated"] = datetime.now(timezone.utc).isoformat()
-            save_tour(doc)
+            try:
+                for name in names:
+                    if not name.startswith("files/"):
+                        continue
+                    base = Path(name).name
+                    if not base or base != name[len("files/"):] or base not in blob:
+                        continue
+                    if Path(base).suffix.lower() not in TOUR_FILE_TYPES:
+                        raise _AbortImport(400, "bad_import",
+                                           f"{base} is not a file type a tour can contain")
+                    # counted by hand: a zip member's size header can lie, so
+                    # the budget is enforced on the bytes that actually arrive
+                    written = 0
+                    with zf.open(name) as src, open(files_dir / base, "wb") as out:
+                        while True:
+                            chunk = src.read(64 * 1024)
+                            if not chunk:
+                                break
+                            written += len(chunk)
+                            budget -= len(chunk)
+                            if written > MAX_TOUR_UPLOAD_BYTES or budget < 0:
+                                raise _AbortImport(413, "too_large",
+                                                   f"{base} decompresses past the size a tour file may be")
+                            out.write(chunk)
+                    copied += 1
+                doc["id"] = fresh["id"]
+                doc["created"] = fresh["created"]
+                doc["updated"] = datetime.now(timezone.utc).isoformat()
+                save_tour(doc)
+            except Exception as exc:
+                # whatever went wrong — bomb, corrupt member, disk full — the
+                # half-imported tour must not survive as an orphan. Cleanup
+                # FIRST, response second: the moment the client hears the
+                # refusal it may list the tours, and it must not see the corpse.
+                shutil.rmtree(tdir, ignore_errors=True)
+                if isinstance(exc, _AbortImport):
+                    send_error(handler, exc.status, exc.code, exc.message)
+                else:
+                    send_error(handler, 400, "bad_import", "a file inside the zip could not be read")
+                return
             send_json(handler, 200, {"ok": True, "id": doc["id"], "files": copied})
     finally:
         spool_path.unlink(missing_ok=True)
