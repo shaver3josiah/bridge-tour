@@ -47,7 +47,7 @@ for (const shot of shots) {
   out.push({
     name: shot.name, hFov,
     facing: p.facing, facingFrom: p.facingFrom,
-    person: p.person ? { yaw: p.person.yaw, alt: p.person.alt } : null,
+    person: p.person ? { yaw: p.person.yaw, alt: p.person.alt, facingCamera: !!p.person.facingCamera } : null,
     opens: open ? { yaw: open.yaw, from: open.from } : null,
   });
 }
@@ -109,11 +109,13 @@ def main() -> int:
         if r["facing"] is not None:
             read.append(f"{r['facingFrom']} {r['facing']:.1f}deg")
         if r["person"]:
-            read.append(f"hi-vis {r['person']['yaw']:.1f}deg at {r['person']['alt']:.0f}deg")
+            turned = "facing camera" if r["person"]["facingCamera"] else "back turned"
+            read.append(f"hi-vis {r['person']['yaw']:.1f}deg at {r['person']['alt']:.0f}deg, {turned}")
         print(f"{r['name'].ljust(width)}  {opens}  {frm:<7}  {', '.join(read) or 'nothing'}")
     print()
-    print("`from` is which signal won: arm = somebody pointed, facing = the crown")
-    print("of a head, person = hi-vis standing out in the scene.")
+    print("`from` is which signal won: arm = somebody pointed, gaze = they were")
+    print("facing the camera so the view turned around, person = hi-vis with their")
+    print("back turned, facing = the crown of a head underfoot.")
     return 0
 
 

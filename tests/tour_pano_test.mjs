@@ -613,6 +613,83 @@ const aimedByArm = openingView(punch);
 check(aimedByArm?.from === 'arm' && Math.abs(wrap180(aimedByArm.yaw - punchYaw)) <= 6,
   `the scene opens where the fist points (got ${aimedByArm?.from} ${aimedByArm?.yaw})`);
 
+/* ---------- and which way that person is turned ----------
+ * The plate aims at somebody in hi-vis on the assumption they are standing at
+ * whatever is being inspected. Which way they FACE flips that: back to the
+ * camera and they are looking onward, past themselves; facing the camera and
+ * what held their attention is behind you.
+ *
+ * Skin cannot tell those apart. The inspectors in the photos this was built
+ * from have hair cropped to the scalp, and a scalp IS skin — the back of their
+ * head passes a colour test for a face without difficulty. What a face has
+ * that the back of a head has not is a dark bar across it, sunglasses on a
+ * site in daylight, with lit cheek below. */
+
+const DARK_BAR = [30, 30, 34];   /* sunglasses */
+
+/* a person standing out at eye level: vest below, head above, at column 64 */
+const standing = ({ bar = false, barRow = 40, headSkin = true } = {}) =>
+  rgbPano((x, y, Wp, Hp) => {
+    const onThem = x >= 58 && x < 71;
+    if (!onThem) return CONCRETE;
+    if (y >= 50 && y < 74) return VEST;                     /* shoulders and chest */
+    if (y >= 36 && y < 50) {                                /* the head */
+      if (bar && y >= barRow && y < barRow + 4) return DARK_BAR;
+      return headSkin ? SKIN : [40, 34, 30];                /* skin, or dark hair */
+    }
+    return CONCRETE;
+  });
+
+const facingUs = panoProfile(standing({ bar: true }));
+check(facingUs.person !== null, 'the person in hi-vis is found either way');
+check(facingUs.person?.facingCamera === true,
+  'sunglasses over a lit face read as somebody looking back at the camera');
+
+/* THE CONFOUND THIS EXISTS FOR. A close-cropped head from behind is scalp,
+   and scalp is skin — so "is there skin above the vest" answers yes for the
+   back of a head, and would turn every photo of somebody walking away by 180
+   degrees. Only the bar separates them. */
+const backOfHead = panoProfile(standing({ bar: false, headSkin: true }));
+check(backOfHead.person?.facingCamera === false,
+  'a bare scalp with no bar across it is the BACK of a head, not a face');
+
+/* dark all the way down is hair, not glasses: no lit cheek under it */
+const darkHair = panoProfile(standing({ bar: false, headSkin: false }));
+check(darkHair.person?.facingCamera === false,
+  'a head dark from top to bottom is hair, not sunglasses');
+
+/* the flip itself, which is the whole point */
+const openFacing = openingView(facingUs);
+const openAway = openingView(backOfHead);
+check(openAway?.from === 'person' && Math.abs(wrap180(openAway.yaw - backOfHead.person.yaw)) < 0.01,
+  'somebody with their back turned is aimed AT, because they are looking onward');
+check(openFacing?.from === 'gaze',
+  `somebody facing the camera aims the other way (got ${openFacing?.from})`);
+check(openFacing && Math.abs(Math.abs(wrap180(openFacing.yaw - facingUs.person.yaw)) - 180) < 0.5,
+  `and "the other way" is exactly 180 from them (got ${openFacing?.yaw} vs ${facingUs.person?.yaw})`);
+
+/* the resolution floor, said out loud: a head a few pixels across cannot be
+   read, and guessing at that size would be a coin toss dressed as a finding */
+const tiny = panoProfile(rgbPano((x, y, Wp, Hp) => {
+  if (x !== 64) return CONCRETE;
+  if (y >= 50 && y < 74) return VEST;
+  if (y >= 47 && y < 50) return SKIN;
+  return CONCRETE;
+}));
+check(tiny.person === null || tiny.person.facingCamera === false,
+  'a head too small to hold a bar is not guessed at');
+
+/* and the arm still outranks all of it: a punch is a decision, a face is an
+   inference about a decision */
+const bothSignals = panoProfile(rgbPano((x, y, Wp, Hp) => {
+  if (x >= 196 && x < 212 && y >= 86) return SKIN;        /* an arm, underfoot */
+  if (x >= 96 && x < 160 && y >= 120) return SKIN;        /* a crown */
+  if (y >= 112) return VEST;                              /* shoulders underfoot */
+  return CONCRETE;
+}));
+check(openingView(bothSignals)?.from === 'arm',
+  'the pointed arm still wins over every reading of a head');
+
 /* ---------- which of those two aims the scene ---------- */
 
 const inspectorProfile = panoProfile(rgbPano((x, y, Wp, Hp) =>

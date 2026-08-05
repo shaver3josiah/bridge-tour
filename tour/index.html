@@ -1686,6 +1686,36 @@ const FACE_MIN_FOCUS = 0.5;   /* 1 = every skin pixel in one direction */
    answer is worn by law. In a living room it will simply decline to read an
    arm and fall back to the head — the upgrade path is a limb detector, and
    that is a model, not a threshold. */
+/* ---------- and whether they are looking back at you ----------
+
+   A person standing out in the scene is already found by their vest, and the
+   plate aims at them on the assumption they are at the thing being inspected.
+   Which way they are FACING is a different question, and it flips the answer:
+   somebody with their back to the camera is looking onward, past themselves;
+   somebody facing the camera is looking back the way you came, and the thing
+   they were looking at is behind you.
+
+   Telling those apart cannot be done on skin. The people in these photos have
+   hair cropped to the scalp, and a scalp is skin — from behind, the back of
+   their head passes a colour test for a face without difficulty. What a face
+   has that the back of a head does not is a DARK BAR across it: sunglasses on
+   a site in daylight, or failing those the shadow of brow and eye sockets,
+   with lit cheek and jaw below it. So the test is a band of dark pixels in the
+   upper half of the head with skin under it, which is the one arrangement the
+   back of a scalp never makes.
+
+   ponytail: this is a bar-under-eyes test, not a face detector, and it is the
+   LAST thing consulted for exactly that reason. It needs the head to be worth
+   more than a handful of pixels, so it refuses on anybody far enough away to
+   be small in frame — a head two metres from the camera is a few degrees
+   across, and a few degrees is a couple of columns at the width this profile
+   works at. The upgrade path is a landmark model; the honest fallback is the
+   vest, which is where it lands when this declines. */
+const GAZE_HEAD_DEG = 14;      /* elevation above the vest a head occupies */
+const GAZE_MIN_PIXELS = 40;    /* below this the head is too small to read at all */
+const GAZE_BAR_DARK = 0.45;    /* share of a row that must be dark to be a bar */
+const GAZE_CHEEK_SKIN = 0.3;   /* share of skin below it: a lit face under the glasses */
+
 const ARM_BAND_ALT = -25;      /* how near the horizon an outstretched arm can land */
 const ARM_MIN_STICKOUT = 8;    /* degrees the fist must beat the body's own reach by */
 const ARM_MIN_VEST = 0.01;     /* share of the underfoot band wearing hi-vis */
@@ -1801,6 +1831,7 @@ function panoProfile(image, { hFov = 360, tilt = 0 } = {}) {
      or on staging above it. */
   const vest = new Float64Array(W);
   const vestRow = new Float64Array(W);
+  const vestTop = new Int32Array(W).fill(-1); /* highest hi-vis: the shoulders */
   for (let x = 0; x < W; x++) {
     let s = 0, rows = 0;
     for (let y = 0; y < H; y++) {
@@ -1813,11 +1844,56 @@ function panoProfile(image, { hFov = 360, tilt = 0 } = {}) {
         const w = (m - b) / 255;
         s += w;
         rows += w * y; /* how far down they are, which decides whether their bearing means anything */
+        if (vestTop[x] < 0) vestTop[x] = y; /* scanning down, so the first is the highest */
       }
     }
     vest[x] = s;
     vestRow[x] = s ? rows / s : 0;
   }
+  /* Warm, not grey, and brighter than it is blue. Used by the gaze read here
+     and by the arm read further down, so it is defined once, above both. */
+  const isSkin = (x, y) => {
+    const i = (y * W + x) * 4;
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    return r >= SKIN_MIN_RED && g >= 40 && b >= 20 && r > b && r - g >= SKIN_MIN_WARMTH
+      && Math.max(r, g, b) - Math.min(r, g, b) > 15;
+  };
+  /* Is the head above these shoulders a face, or the back of one? See
+     GAZE_HEAD_DEG above for why this asks about a dark bar rather than skin. */
+  const looksBack = (col, shoulders) => {
+    if (shoulders <= 0) return false;
+    const headTop = rowAt(altAt(shoulders) + GAZE_HEAD_DEG);
+    if (shoulders - headTop < 3) return false; /* fewer than three rows is not a head */
+    const half = Math.max(1, Math.round(GAZE_HEAD_DEG / hFov * W / 2));
+    const cols = [];
+    for (let k = -half; k <= half; k++) cols.push((col + k + W) % W);
+    if ((shoulders - headTop) * cols.length < GAZE_MIN_PIXELS) return false;
+
+    /* per row of the head: how much of it is dark, how much is skin */
+    const dark = [], skin = [];
+    for (let y = headTop; y < shoulders; y++) {
+      let nDark = 0, nSkin = 0;
+      for (const x of cols) {
+        const i = (y * W + x) * 4;
+        if (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2] < 70) nDark++;
+        if (isSkin(x, y)) nSkin++;
+      }
+      dark.push(nDark / cols.length);
+      skin.push(nSkin / cols.length);
+    }
+    /* The bar has to sit in the head's upper half with lit face under it. A
+       dark BOTTOM row is the shadow where a chin meets a collar, and a head
+       dark all the way down is hair, not glasses. */
+    let bar = -1;
+    for (let i = 0; i < Math.max(1, Math.floor(dark.length * 0.7)); i++) {
+      if (dark[i] >= GAZE_BAR_DARK && (bar < 0 || dark[i] > dark[bar])) bar = i;
+    }
+    if (bar < 0 || bar >= dark.length - 1) return false;
+    let cheek = 0;
+    for (let i = bar + 1; i < skin.length; i++) cheek += skin[i];
+    return cheek / (skin.length - bar - 1) >= GAZE_CHEEK_SKIN;
+  };
+
   let person = null;
   {
     const sorted = [...vest].sort((a, b) => a - b);
@@ -1828,6 +1904,7 @@ function panoProfile(image, { hFov = 360, tilt = 0 } = {}) {
        scale at which a peak counts as "one place" rather than "everywhere" */
     if (vest[top] > 0 && vest[top] / (median + 0.5) >= HIVIS_MIN_PEAK_RATIO) {
       person = { col: top, yaw: yawAt(top), alt: +altAt(vestRow[top]).toFixed(2) };
+      person.facingCamera = looksBack(top, vestTop[top]);
     }
   }
 
@@ -1835,12 +1912,6 @@ function panoProfile(image, { hFov = 360, tilt = 0 } = {}) {
      The arm first, the head second. See ARM_BAND_ALT above for why the arm is
      found by REACH rather than by colour alone, and SKIN_MIN_RED for what this
      colour test is and is not. */
-  const isSkin = (x, y) => {
-    const i = (y * W + x) * 4;
-    const r = d[i], g = d[i + 1], b = d[i + 2];
-    return r >= SKIN_MIN_RED && g >= 40 && b >= 20 && r > b && r - g >= SKIN_MIN_WARMTH
-      && Math.max(r, g, b) - Math.min(r, g, b) > 15;
-  };
   let facing = null;
   let facingFrom = null;
   {
@@ -2050,10 +2121,22 @@ function guessNavigableYaws(profile, count = 3) {
    because "no idea" has to stay one of the answers. */
 function openingView(profile) {
   const p = profile?.person;
-  if (p && p.alt > UNDERFOOT_ALT) return { yaw: p.yaw, pitch: 0, from: 'person' };
-  if (Number.isFinite(profile?.facing)) {
-    return { yaw: profile.facing, pitch: 0, from: profile.facingFrom === 'arm' ? 'arm' : 'facing' };
+  /* Somebody pointing beats everything: it is the one thing in a photograph
+     that was aimed at whoever reads the record later. */
+  if (Number.isFinite(profile?.facing) && profile.facingFrom === 'arm') {
+    return { yaw: profile.facing, pitch: 0, from: 'arm' };
   }
+  if (p && p.alt > UNDERFOOT_ALT) {
+    /* Which way they are turned flips where to look. Back to the camera and
+       they are looking onward, past themselves — aim at them and beyond, which
+       on an inspection is the thing they walked over to. Facing the camera and
+       they are looking back down the way you came, so what held their
+       attention is behind you: turn around. */
+    return p.facingCamera
+      ? { yaw: +wrap180(p.yaw + 180).toFixed(2), pitch: 0, from: 'gaze' }
+      : { yaw: p.yaw, pitch: 0, from: 'person' };
+  }
+  if (Number.isFinite(profile?.facing)) return { yaw: profile.facing, pitch: 0, from: 'facing' };
   return null;
 }
 
@@ -6691,6 +6774,8 @@ async function renderEditor(tourId) {
       person: 'Opens facing someone in hi-vis, on the assumption they are at whatever is being inspected.',
       arm: 'Opens where the person under the camera was pointing — an arm thrown out at something is the'
         + ' one instruction in a photo that was meant for whoever reads it later.',
+      gaze: 'The person in this one is facing the camera — sunglasses and a lit face above the vest — so'
+        + ' what held their attention is behind you, and it opens turned around rather than aimed at them.',
       facing: 'Nobody was pointing in this one, so it opens whichever way the person under the camera'
         + ' was looking, read off the top of their head at the base of the photo.',
     }[s.viewFrom];

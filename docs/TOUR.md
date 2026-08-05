@@ -335,10 +335,27 @@ A forty-panorama bridge is a maze, so:
   from them on the ground, so the direction bare skin climbs furthest is the
   fist. The scene opens on that bearing, level with the horizon.
 
-  Failing a pointed arm, it falls back to the crown of the head — from directly
-  above, the only skin up there is the face, and it sits at the bearing they
-  are turned to. Failing both, it opens on somebody in hi-vis standing out in
-  the scene. **This scene** always says which of the three it read.
+  Failing a pointed arm, it looks for somebody in hi-vis standing out in the
+  scene — and which way they are TURNED flips where it aims. Back to the
+  camera and they are looking onward past themselves, so it aims at them and
+  beyond, which on an inspection is the thing they walked over to. Facing the
+  camera and they are looking back down the way you came, so what held their
+  attention is behind you: it turns around.
+
+  Telling those two apart cannot be done on skin. Hair cropped to the scalp is
+  skin, so the back of a head passes a colour test for a face without
+  difficulty — which would turn every photo of somebody walking away by 180°.
+  What a face has that the back of a head has not is a **dark bar across it**:
+  sunglasses on a site in daylight, or failing those the shadow of brow and
+  eye sockets, with lit cheek and jaw below. That arrangement is the one the
+  back of a scalp never makes. It needs the head to be worth more than a
+  handful of pixels, so it declines on anybody far enough away to be small in
+  frame rather than tossing a coin.
+
+  Failing all of that, it reads the crown of the head underfoot — from
+  directly above, the only skin up there is the face, and it sits at the
+  bearing they are turned to. **This scene** always says which reading it
+  used.
 
   It refuses rather than guesses when nobody is under the camera at all: rust,
   bare timber and dry soil all pass a colour test for skin, and one stain in
