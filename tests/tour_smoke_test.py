@@ -211,7 +211,7 @@ def main() -> int:
     check("index.html" in names and "README.txt" in names, "export has index + readme")
     # provenance: a folder found in three years has to explain itself
     check("manifest.json" in names, "export carries a provenance manifest")
-    check(manifest["app"] == "orbit-tour" and manifest["tour"]["id"] == tid,
+    check(manifest["app"] == "bridge-tour" and manifest["tour"]["id"] == tid,
           "manifest names the app and the tour")
     check(manifest["counts"]["scenes"] == len(doc["scenes"]),
           "manifest scene count matches the document")
@@ -287,6 +287,31 @@ def main() -> int:
     check(status == 200, "delete tour")
     status, _ = http_json_allow_error("GET", f"/api/tours/{tid}")
     check(status == 404, "tour gone after delete")
+
+    # gone from the API, not from the disk: a regretted delete is a folder move
+    trash = TEMP_HOME / "tours" / ".trash"
+    binned = list(trash.glob(f"{tid}-*")) if trash.exists() else []
+    check(len(binned) == 1 and (binned[0] / "tour.json").exists(),
+          "deleted tour landed in .trash with its files")
+    status, listed = http_json("GET", "/api/tours")
+    check(all(item["id"] != tid for item in listed["tours"]),
+          "and nothing in .trash shows up in the list")
+
+    # the export zip is also the backup: feed it back and the tour returns
+    req = urllib.request.Request(
+        BASE + "/api/tours/import", data=zip_bytes, method="POST",
+        headers={"Content-Type": "application/zip"})
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        imported = json.loads(resp.read().decode("utf-8"))
+    check(imported["ok"] and imported["id"] != tid, "import re-creates the tour under a fresh id")
+    status, back = http_json("GET", f"/api/tours/{imported['id']}")
+    check(status == 200 and back["name"] == "Smoke Tour", "imported doc is readable and keeps its name")
+    check(len(back["scenes"]) == 1 and back["scenes"][0]["file"] == up1["file"],
+          "scenes survive the round trip")
+    check(http_status(f"/api/tours/{imported['id']}/files/{up1['file']}") == 200,
+          "and the media rides along")
+    status, _ = http_json_allow_error("POST", "/api/tours/import")
+    check(status in (400, 411), "an empty import is refused, not half-created")
 
     app_path = REPO_ROOT / "tour" / "index.html"
     if app_path.exists():

@@ -609,6 +609,20 @@
   .plan > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-xs); }
   .plan-span { margin-left: auto; font-size: var(--t-sm); color: var(--ink-3); }
   .plan-how { margin: 0 0 var(--s2); }
+  .drop-kinds { font-size: var(--t-xs); color: var(--ink-3); font-weight: 400; }
+  #plan-strays:not(:empty) { margin-top: var(--s2); display: flex; flex-direction: column; gap: var(--s1); }
+  .stray-chip {
+    text-align: left; font-size: var(--t-sm); color: var(--warning);
+    background: none; border: 1px dashed var(--warning); border-radius: var(--r-sm);
+    padding: var(--s1) var(--s2); cursor: pointer;
+  }
+  .stray-chip:hover, .stray-chip:focus-visible { background: var(--accent-tint); outline: none; }
+  .view-hint {
+    position: absolute; left: 50%; bottom: 56px; transform: translateX(-50%);
+    background: var(--scrim-strong); color: #fff; padding: var(--s2) var(--s4);
+    border-radius: var(--r-pill); font-size: var(--t-md); pointer-events: none;
+    z-index: 4; white-space: nowrap; max-width: 92vw;
+  }
   /* in CSS rather than an inline width, so the overlay below can size it to its
      own text instead of stretching a rarely-used action across the whole plate */
   #plan-reset { width: 100%; }
@@ -3127,6 +3141,8 @@ async function renderHome() {
       <div class="home-head">
         <h1>Bridge Tour</h1>
         <button class="btn primary" id="new-tour">New tour</button>
+        <button class="btn" id="import-tour">Import tour&hellip;</button>
+        <input type="file" id="import-file" accept=".zip,application/zip" hidden>
       </div>
       <p class="home-sub">Self-hosted 360&deg; virtual tours. Your panoramas never leave this machine.</p>
       <form class="create-row" id="create-row">
@@ -3142,6 +3158,28 @@ async function renderHome() {
   document.getElementById('new-tour').addEventListener('click', () => {
     createRow.classList.add('open');
     createName.focus();
+  });
+  /* the export zip is also the backup: hand one back and the tour returns —
+     a laptop swap, a colleague's copy, the machine that died mid-season */
+  const importBtn = document.getElementById('import-tour');
+  const importFile = document.getElementById('import-file');
+  importBtn.addEventListener('click', () => importFile.click());
+  importFile.addEventListener('change', async () => {
+    const file = importFile.files[0];
+    importFile.value = '';
+    if (!file) return;
+    importBtn.disabled = true;
+    importBtn.textContent = 'Importing…';
+    try {
+      const res = await fetch('/api/tours/import', { method: 'POST', body: file });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(out.detail || 'import failed');
+      location.href = `/tour?edit=${out.id}`;
+    } catch (err) {
+      toast(`Could not import: ${err.message}. It wants the export.zip this app produces.`, true);
+      importBtn.disabled = false;
+      importBtn.textContent = 'Import tour…';
+    }
   });
   document.getElementById('create-cancel').addEventListener('click', () => {
     createRow.classList.remove('open');
@@ -3618,6 +3656,37 @@ async function renderViewer(tourId) {
     viewer.addEventListener('ready', updateCompass, { once: true });
   }
 
+  /* One sentence, once ever, for the person a tour is handed to: they were
+     not in the editor and nobody is standing beside them to say how this
+     works. Gone on first interaction or after eight seconds. */
+  try {
+    if (!localStorage.getItem('bt-hint-seen')) {
+      const hint = el(`<div class="view-hint" role="status">Drag to look around &middot; click an arrow to walk through</div>`);
+      stage.append(hint);
+      const dismiss = () => {
+        hint.remove();
+        try { localStorage.setItem('bt-hint-seen', '1'); } catch { /* private mode */ }
+      };
+      /* Dismissed by USE, not by presence. position-updated fires from the
+         little-planet intro, so listening to it killed the hint at one second
+         on every load; a bare pointerdown is also wrong, because embedding
+         pages and test harnesses synthesise focus clicks. A drag (button held
+         through a move), a wheel, or a key is somebody actually looking
+         around — the exact thing the hint teaches. */
+      const dragging = e => { if (e.buttons) done(); };
+      const done = () => {
+        stage.removeEventListener('pointermove', dragging);
+        stage.removeEventListener('wheel', done);
+        window.removeEventListener('keydown', done);
+        dismiss();
+      };
+      stage.addEventListener('pointermove', dragging);
+      stage.addEventListener('wheel', done, { passive: true });
+      window.addEventListener('keydown', done);
+      setTimeout(done, 8000);
+    }
+  } catch { /* storage blocked: the hint simply shows every time */ }
+
   /* little planet intro: unfold to normal view once loaded */
   let introPending = littlePlanet;
   if (littlePlanet) {
@@ -4076,7 +4145,8 @@ async function renderEditor(tourId) {
           <div id="scene-list" role="navigation" aria-label="Scenes"></div>
           <p class="scene-note" id="reach-notice"></p>
           <div class="drop-zone" id="drop-zone" role="button" tabindex="0">
-            <span id="drop-label">Drop photos here<br>or click to choose</span>
+            <span id="drop-label">Drop photos here<br>or click to choose<br>
+              <span class="drop-kinds">360 exports, phone sweeps and plain photos all work</span></span>
             <input type="file" id="file-input" accept="image/*,.heic,.heif" multiple hidden>
           </div>
           <p class="scene-note" id="drop-notice"></p>
@@ -4090,6 +4160,7 @@ async function renderEditor(tourId) {
             <p class="scene-note plan-how" id="plan-how"></p>
             <div class="plan-box" id="plan-box"></div>
             <p class="scene-note" id="plan-note"></p>
+            <div id="plan-strays"></div>
             <button class="btn" id="plan-reset" hidden>Undo my placements</button>
           </details>
         </div>
@@ -4122,6 +4193,16 @@ async function renderEditor(tourId) {
               <button class="btn" id="copy-link" aria-label="Copy tour link">Copy</button>
             </div>
           </div>
+          <div class="share-row" id="lan-row" hidden>
+            <label for="lan-link">On this wifi (phones and tablets)</label>
+            <div class="copy">
+              <input id="lan-link" readonly>
+              <button class="btn" id="copy-lan" aria-label="Copy wifi link">Copy</button>
+            </div>
+          </div>
+          <p class="scene-note" id="lan-hint" hidden>Start the server with
+            <span class="num">python server.py --lan</span> and a link phones on
+            this wifi can open appears here.</p>
           <div class="share-row">
             <label for="embed-code">Embed on a website</label>
             <div class="copy">
@@ -4131,6 +4212,10 @@ async function renderEditor(tourId) {
           </div>
           <div class="share-row">
             <a class="btn" id="export-btn" href="/api/tours/${esc(doc.id)}/export.zip" download>Download standalone site</a>
+            <p class="scene-note">The zip is a complete website and a full backup: drag it onto
+              <a href="https://app.netlify.com/drop" target="_blank" rel="noopener">Netlify Drop</a>
+              for a free public link, unzip it into any web host, or keep it —
+              <em>Import tour</em> on the home page brings it back whole.</p>
           </div>
           <div class="share-row">
             <button class="btn" id="register-btn">Download defect register (CSV)</button>
@@ -4281,6 +4366,16 @@ async function renderEditor(tourId) {
   function preflight() {
     const out = [];
     if (!doc.scenes.length) return ['There are no photos in this tour yet.'];
+    /* Only once somebody has started assigning stops: a tour that never uses
+       them is not failing at them. Half-assigned coverage is exactly what a
+       pre-share check exists to catch — while the site is still reachable and
+       a missing Bearings photo costs a walk instead of a second visit. */
+    if (doc.scenes.some(sc => sc.stop)) {
+      const empty = NBIS_STOPS.filter(st => !doc.scenes.some(sc => sc.stop === st));
+      if (empty.length) {
+        out.push(`No photos assigned to ${empty.length} of the ${NBIS_STOPS.length} photo stops: ${empty.join(', ')}.`);
+      }
+    }
     const stranded = strandedScenes(doc);
     if (stranded.length) {
       out.push(`${stranded.length} scene${stranded.length > 1 ? 's' : ''} nothing links to — ` +
@@ -4426,14 +4521,22 @@ async function renderEditor(tourId) {
       const said = bear === null
         ? `${name} has no bearing yet. Drag this arrow, or press the arrow keys, to say which way it looks.`
         : `${name} looks ${Math.round(bear)} degrees. Drag this arrow, or press the arrow keys, to change it.`;
-      const hand = bear === null ? '' : ` ${s?.geo?.headingFrom === 'hand' ? 'aimed by hand' : 'from its own compass'}`;
+      const src = bear === null ? '' : ' ' + ({
+        hand: 'aimed by hand',
+        sun: 'worked out from the sun',
+        magnetic: 'magnetic compass',
+        match: s?.geo?.headingHops > 1
+          ? `carried ${s.geo.headingHops} photos from one that knows — worth checking`
+          : 'carried from a photo that shares this view',
+        plan: 'read off the map',
+      }[s?.geo?.headingFrom] || 'recorded by the camera');
       /* one rotation, no path arithmetic: the dart is drawn pointing north and
          a bearing IS its angle, so turning one mid-drag is a single transform */
       const mark = el(`<button class="plan-aim${p.id === curSceneId ? ' on' : ''}${bear === null ? ' unset' : ''}"
         data-aim-id="${esc(p.id)}" ${live
           ? `role="slider" aria-valuemin="0" aria-valuemax="359" aria-valuenow="${Math.round(bear ?? 0)}"
              aria-label="${esc(said)}" title="${esc(bear === null
-               ? 'Not aimed yet — drag to turn' : `${Math.round(bear)}°${hand} — drag to turn`)}"`
+               ? 'Not aimed yet — drag to turn' : `${Math.round(bear)}°${src} — drag to turn`)}"`
           : 'tabindex="-1" aria-hidden="true"'}
         style="left:${(p.u * 100).toFixed(2)}%;top:${(p.v * 100).toFixed(2)}%"
         ><svg viewBox="0 0 100 100" aria-hidden="true"><path d="${AIM_DART}"/></svg></button>`);
@@ -4633,6 +4736,21 @@ async function renderEditor(tourId) {
         : '',
       counts.gps ? 'Phone GPS is good to a few metres, so treat this as a sketch.' : '',
     ].filter(Boolean).join(' ');
+
+    /* The stray sentence above names the problem; these make it one click to
+       act on. A chip per set-aside photo: select it, and the drag home is the
+       next motion. */
+    const strayBox = document.getElementById('plan-strays');
+    if (strayBox) {
+      strayBox.innerHTML = '';
+      for (const st of plan.strays) {
+        const sc = doc.scenes.find(x => x.id === st.id);
+        const chip = el(`<button class="stray-chip" title="Select this photo on the plate">
+          ⚠ ${esc(sc?.name || st.id)} — fix ${esc(niceAway(st.away))} off · show me</button>`);
+        chip.addEventListener('click', () => selectScene(st.id));
+        strayBox.append(chip);
+      }
+    }
   }
 
   /* Cutting a link is the other half of drawing one. Both directions go: half
@@ -4726,6 +4844,7 @@ async function renderEditor(tourId) {
     }
     s.geo.heading = headingForAim(s, aim);
     s.geo.headingFrom = 'hand';
+    delete s.geo.headingHops; /* a hand aim is zero hops from anything */
     scheduleSave();
     /* an arrow just aimed is a new seed, and everything derived is recomputed,
        so the whole walk re-follows the photo you actually know about */
@@ -4767,6 +4886,7 @@ async function renderEditor(tourId) {
         g.classList.remove('turning');
         if (aim === null) return;
         setAim(scene(), aim);
+        toast(`Aimed "${scene()?.name || 'photo'}" at ${Math.round(aim)}° — Ctrl+Z undoes it`);
         renderPlan();
         renderSceneMeta();
         box.querySelector(`.plan-aim[data-aim-id="${CSS.escape(p.id)}"]`)?.focus();
@@ -4920,6 +5040,25 @@ async function renderEditor(tourId) {
       : `${n} defect${n > 1 ? 's' : ''}${unmeasured ? `, ${unmeasured} with no measurement` : ''}.`;
   }
 
+  /* the health route knows whether --lan is on and what this machine's wifi
+     address is; the row only exists when a phone could actually reach it */
+  fetch('/api/health').then(r => r.json()).then(health => {
+    if (health.lan?.length) {
+      const row = document.getElementById('lan-row');
+      const input = document.getElementById('lan-link');
+      if (!row || !input) return;
+      input.value = `http://${health.lan[0]}:${health.port}/tour/view/${doc.id}`;
+      row.hidden = false;
+      document.getElementById('copy-lan')?.addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(input.value); toast('Wifi link copied'); }
+        catch { input.select(); toast('Press Ctrl+C to copy', true); }
+      });
+    } else {
+      const hint = document.getElementById('lan-hint');
+      if (hint) hint.hidden = false;
+    }
+  }).catch(() => { /* health is best-effort chrome, never a blocker */ });
+
   document.getElementById('register-btn').addEventListener('click', () => downloadRegister(doc));
   document.getElementById('print-btn').addEventListener('click', () => printPhotoLog(doc));
 
@@ -4985,11 +5124,14 @@ async function renderEditor(tourId) {
            one, which at least admits it does not know */
         delete s.geo?.heading;
         delete s.geo?.headingFrom;
+        delete s.geo?.headingHops;
         continue;
       }
       s.geo = s.geo || {};
       s.geo.heading = f.heading;
       s.geo.headingFrom = f.from;
+      if (f.from === 'match' && f.hops > 0) s.geo.headingHops = f.hops;
+      else delete s.geo.headingHops;
     }
     scheduleSave();
     renderPlan();
@@ -5081,7 +5223,8 @@ async function renderEditor(tourId) {
       }
       done++;
     }
-    dropLabel.innerHTML = 'Drop photos here<br>or click to choose';
+    dropLabel.innerHTML = 'Drop photos here<br>or click to choose<br>'
+      + '<span class="drop-kinds">360 exports, phone sweeps and plain photos all work</span>';
     setDropNotice(failures);
     /* Photos with no way to walk between them are not a tour yet. Connect them
        straight away rather than leaving it behind a button the user has to
@@ -5570,7 +5713,12 @@ async function renderEditor(tourId) {
     return null;
   }
 
+  /* what "+ Another like this" carries to the next placement: the type and
+     its measurements, never the code (the register's primary key) or the note */
+  let defectPrefill = null;
+
   function setPlacing(next) {
+    if (next !== 'defect') defectPrefill = null;
     placing = next;
     ghost?.remove();
     ghost = null;
@@ -6393,7 +6541,9 @@ async function renderEditor(tourId) {
         sun: 'worked out from the sun',
         magnetic: 'from the camera’s magnetic compass',
         hand: 'aimed by hand on the map',
-        match: 'carried over from a photo that shares this view',
+        match: g.headingHops > 1
+          ? `carried over from a photo that shares a view, ${g.headingHops} photos away — the further it travelled, the more worth a glance`
+          : 'carried over from a photo that shares this view',
         plan: 'worked out from where its links point on the map',
       }[g.headingFrom] || 'recorded by the camera';
       derived.push(`Centre of this photo faces ${Math.round(g.heading)}°, ${src}.`);
@@ -6523,6 +6673,7 @@ async function renderEditor(tourId) {
       return;
     }
     const type = placing;
+    const repeating = type === 'defect' && !!defectPrefill;
     setPlacing(null);
     /* a link is born connected to nothing: the panel that opens next is where
        you say where it goes, which is the point of placing first */
@@ -6530,12 +6681,20 @@ async function renderEditor(tourId) {
       type === 'link' ? { id: newId('h'), type: 'link', yaw, pitch, target: '', label: '' }
         : type === 'url' ? { id: newId('h'), type: 'url', yaw, pitch, url: '', label: '' }
           : type === 'defect'
-            ? { id: newId('h'), type: 'defect', yaw, pitch, code: nextDefectCode(doc.scenes), defect: DEFECT_TYPES[0], note: '' }
+            ? { id: newId('h'), type: 'defect', yaw, pitch, code: nextDefectCode(doc.scenes), defect: DEFECT_TYPES[0], note: '', ...(defectPrefill || {}) }
             : { id: newId('h'), type: 'info', yaw, pitch, title: '', text: '' });
     s.hotspots.push(h);
     scheduleSave();
     refreshMarkers();
     renderSceneList();
+    /* Repeating stays in the flow: ten spalls on one soffit should be ten
+       clicks, not ten panel round-trips. The panel is one click on the mark
+       away whenever a note or a measurement differs. */
+    if (repeating) {
+      toast(`${h.code} placed — click the next spot, Esc to stop`);
+      setPlacing('defect');
+      return;
+    }
     openHotspotPanel(h.id);
   }
 
@@ -6623,6 +6782,7 @@ async function renderEditor(tourId) {
         <span class="val num" id="hs-opacity-val"></span></div>
       <div class="frow"><label>Custom icon (optional)</label><span id="hs-icon-line"></span></div>
       <div class="row">
+        ${h.type === 'defect' ? '<button class="btn" id="hs-again" title="Place another defect of this type and size">+ Another like this</button>' : ''}
         <button class="btn" id="hs-move">Move</button>
         <button class="btn danger-text" id="hs-delete">Delete</button>
         <button class="btn primary" id="hs-done" style="margin-left:auto">Done</button>
@@ -6736,6 +6896,14 @@ async function renderEditor(tourId) {
     wireFileRow(panel.querySelector('#hs-icon-line'), h, 'icon', 'image/png,image/jpeg,image/webp', 'custom icon');
     panel.querySelector('input, select, textarea, button')?.focus();
     panel.querySelector('#hs-move').addEventListener('click', () => setPlacing({ move: h.id }));
+    panel.querySelector('#hs-again')?.addEventListener('click', () => {
+      defectPrefill = {};
+      for (const key of ['defect', 'depthIn', 'widthIn', 'rebar', 'element', 'station']) {
+        if (h[key] !== undefined) defectPrefill[key] = h[key];
+      }
+      closeHotspotPanel();
+      startPlacing('defect');
+    });
     const hsDelete = panel.querySelector('#hs-delete');
     let hsDelTimer = null;
     hsDelete.addEventListener('click', () => {
@@ -6808,7 +6976,14 @@ async function renderEditor(tourId) {
      toast about work they did not request — the plate's own note says how many
      photos know where they face, and the scene panel says where each came
      from. It only ever fills silence, never overwrites an answer. */
-  fillBearings({ quiet: true });
+  {
+    const filled = fillBearings({ quiet: true });
+    if (filled) {
+      setLinkSummary(`${filled} bearing${filled === 1 ? '' : 's'} worked out on open — from photos `
+        + 'that share a view, and from the map. The arrows on the plan show them; turn any that look '
+        + 'wrong, and Ctrl+Z takes the lot back.');
+    }
+  }
 }
 </script>
 </body>

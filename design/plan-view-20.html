@@ -606,6 +606,20 @@
   .plan > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-xs); }
   .plan-span { margin-left: auto; font-size: var(--t-sm); color: var(--ink-3); }
   .plan-how { margin: 0 0 var(--s2); }
+  .drop-kinds { font-size: var(--t-xs); color: var(--ink-3); font-weight: 400; }
+  #plan-strays:not(:empty) { margin-top: var(--s2); display: flex; flex-direction: column; gap: var(--s1); }
+  .stray-chip {
+    text-align: left; font-size: var(--t-sm); color: var(--warning);
+    background: none; border: 1px dashed var(--warning); border-radius: var(--r-sm);
+    padding: var(--s1) var(--s2); cursor: pointer;
+  }
+  .stray-chip:hover, .stray-chip:focus-visible { background: var(--accent-tint); outline: none; }
+  .view-hint {
+    position: absolute; left: 50%; bottom: 56px; transform: translateX(-50%);
+    background: var(--scrim-strong); color: #fff; padding: var(--s2) var(--s4);
+    border-radius: var(--r-pill); font-size: var(--t-md); pointer-events: none;
+    z-index: 4; white-space: nowrap; max-width: 92vw;
+  }
   /* in CSS rather than an inline width, so the overlay below can size it to its
      own text instead of stretching a rarely-used action across the whole plate */
   #plan-reset { width: 100%; }

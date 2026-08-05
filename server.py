@@ -9,6 +9,7 @@ import queue
 import re
 import secrets
 import shutil
+import socket
 import subprocess
 import tempfile
 import threading
@@ -338,8 +339,27 @@ def handle_repo_file(handler: "Handler", folder: str, name: str) -> None:
     send_file(handler, path, content_type)
 
 
+def lan_addresses() -> list[str]:
+    """Best-effort list of this machine's LAN addresses, for the Share panel.
+    A UDP connect never sends a packet; it just makes the OS pick the outward
+    interface, which is the address a phone on the same wifi can reach."""
+    found: list[str] = []
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            probe.connect(("192.0.2.1", 9))  # TEST-NET-1: never routed, never sent
+            addr = probe.getsockname()[0]
+            if addr and not addr.startswith("127."):
+                found.append(addr)
+    except OSError:
+        pass
+    return found
+
+
+SERVE_LAN = False
+
+
 def handle_health(handler: "Handler") -> None:
-    send_json(handler, 200, {"ok": True, "app": "bridge-tour", "version": VERSION})
+    send_json(handler, 200, {"ok": True, "app": "bridge-tour", "version": VERSION, "port": handler.server.server_address[1], "lan": lan_addresses() if SERVE_LAN else []})
 
 
 MAX_TOUR_UPLOAD_BYTES = 64 * 1024 * 1024
@@ -409,12 +429,47 @@ def handle_tour_save(handler: "Handler", tour_id: str) -> None:
     send_json(handler, 200, written)
 
 
+TRASH_KEEP_DAYS = 30
+
+
+def trash_dir() -> Path:
+    return get_tours_dir() / ".trash"
+
+
+def prune_trash() -> None:
+    """Old deletions go for good; recent ones survive a regret. Runs at boot,
+    not on a timer - a laptop tool restarts often enough."""
+    root = trash_dir()
+    if not root.exists():
+        return
+    cutoff = time.time() - TRASH_KEEP_DAYS * 24 * 60 * 60
+    for entry in root.iterdir():
+        try:
+            if entry.stat().st_mtime < cutoff:
+                shutil.rmtree(entry, ignore_errors=True)
+        except OSError:
+            continue
+
+
 def handle_tour_delete(handler: "Handler", tour_id: str) -> None:
+    """Confirmed-then-regretted used to have no recourse: delete was the one
+    truly unrecoverable action in the app. Now it is a move into tours/.trash,
+    kept for TRASH_KEEP_DAYS. Everything else still sees a deletion - the id
+    regex refuses dotted names, so nothing in .trash is reachable over the API,
+    and list_tours only reads direct children. Getting one back is a folder
+    move, and docs/TOUR.md says so."""
     tdir = tour_dir(tour_id)
     if tdir is None or not (tdir / "tour.json").exists():
         send_error(handler, 404, "not_found", "tour not found")
         return
-    shutil.rmtree(tdir, ignore_errors=True)
+    dest = trash_dir() / (tour_id + "-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"))
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        shutil.move(str(tdir), str(dest))
+    except OSError:
+        # a locked file (antivirus, an open explorer window) must not leave the
+        # tour half-moved and still listed - fall back to the old behaviour
+        shutil.rmtree(tdir, ignore_errors=True)
     send_json(handler, 200, {"ok": True})
 
 
@@ -501,7 +556,7 @@ def export_manifest(tour: dict) -> dict:
     if not isinstance(inspection, dict):
         inspection = {}
     return {
-        "app": "orbit-tour",
+        "app": "bridge-tour",
         "tour": {"id": tour.get("id"), "name": tour.get("name")},
         "inspection": {
             "structureId": inspection.get("structureId"),
@@ -554,6 +609,9 @@ def handle_tour_export(handler: "Handler", tour_id: str) -> None:
             z.writestr("index.html", html)
             z.writestr("README.txt", EXPORT_README)
             z.writestr("manifest.json", json.dumps(export_manifest(tour), indent=2))
+            # the full doc, not just the manifest summary: this is what makes an
+            # export importable again - the site is also the backup
+            z.writestr("tour.json", json.dumps(tour, indent=2))
             for f in sorted((REPO_ROOT / "tour" / "vendor").iterdir()):
                 if f.suffix in (".js", ".css"):
                     z.write(f, f"vendor/{f.name}")
@@ -571,6 +629,94 @@ def handle_tour_export(handler: "Handler", tour_id: str) -> None:
             shutil.copyfileobj(source, handler.wfile, 64 * 1024)
     finally:
         tmp_path.unlink(missing_ok=True)
+
+
+MAX_IMPORT_BYTES = 1024 * 1024 * 1024  # a 40-photo bridge walk runs to hundreds of MB
+
+
+def handle_tour_import(handler: "Handler") -> None:
+    """The other half of export.zip: feed one back in and the tour returns -
+    a laptop swap, a colleague's copy, or the backup that outlived the machine.
+
+    Spooled to disk rather than read into memory, because a real tour zip is
+    hundreds of MB and ZipFile needs a seekable file anyway. Only files/* and
+    tour.json are read out of it; index.html, vendor and anything else in the
+    zip are ignored, so a tampered or merely unusual zip can add nothing the
+    server would ever serve. Every media name is flattened to its basename and
+    must already be referenced by the doc, which is the same containment the
+    upload route enforces one file at a time."""
+    length = int(handler.headers.get("Content-Length", 0) or 0)
+    if length <= 0:
+        send_error(handler, 411, "length_required", "Content-Length required")
+        return
+    if length > MAX_IMPORT_BYTES:
+        send_error(handler, 413, "too_large", "import exceeds 1GB")
+        return
+    with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as spool:
+        remaining = length
+        while remaining > 0:
+            chunk = handler.rfile.read(min(64 * 1024, remaining))
+            if not chunk:
+                break
+            spool.write(chunk)
+            remaining -= len(chunk)
+        spool_path = Path(spool.name)
+    try:
+        if remaining > 0:
+            send_error(handler, 400, "truncated", "upload ended before Content-Length bytes")
+            return
+        try:
+            zf = zipfile.ZipFile(spool_path)
+        except zipfile.BadZipFile:
+            send_error(handler, 400, "bad_zip", "that file is not a zip")
+            return
+        with zf:
+            names = set(zf.namelist())
+            doc = None
+            if "tour.json" in names:
+                try:
+                    doc = json.loads(zf.read("tour.json").decode("utf-8"))
+                except Exception:
+                    doc = None
+            if doc is None and "index.html" in names:
+                # exports made before tour.json rode along inline the doc into
+                # the page; recover it from there rather than turning them away
+                page = zf.read("index.html").decode("utf-8", "replace")
+                m = re.search(r"window\.BRIDGE_STATIC_TOUR\s*=\s*(\{.*?\});</script>", page, re.DOTALL)
+                if m:
+                    try:
+                        doc = json.loads(m.group(1))
+                    except Exception:
+                        doc = None
+            if not isinstance(doc, dict) or not isinstance(doc.get("scenes"), list):
+                send_error(handler, 400, "bad_import",
+                           "no readable tour.json in this zip - is it a Bridge Tour export?")
+                return
+            fresh = new_tour(str(doc.get("name") or "Imported tour"))
+            tdir = tour_dir(fresh["id"])
+            files_dir = tdir / "files"
+            files_dir.mkdir(parents=True, exist_ok=True)
+            wanted = {sc.get("file") for sc in doc["scenes"] if isinstance(sc, dict)}
+            wanted |= {sc.get("thumb") for sc in doc["scenes"] if isinstance(sc, dict)}
+            wanted |= {(doc.get("settings") or {}).get("logo")}
+            wanted.discard(None)
+            copied = 0
+            for name in names:
+                if not name.startswith("files/"):
+                    continue
+                base = Path(name).name
+                if not base or base != name[len("files/"):] or base not in wanted:
+                    continue
+                with zf.open(name) as src, open(files_dir / base, "wb") as out:
+                    shutil.copyfileobj(src, out, 64 * 1024)
+                copied += 1
+            doc["id"] = fresh["id"]
+            doc["created"] = fresh["created"]
+            doc["updated"] = datetime.now(timezone.utc).isoformat()
+            save_tour(doc)
+            send_json(handler, 200, {"ok": True, "id": doc["id"], "files": copied})
+    finally:
+        spool_path.unlink(missing_ok=True)
 
 
 def handle_tour_file_get(handler: "Handler", tour_id: str, name: str) -> None:
@@ -599,6 +745,7 @@ GET_ROUTES: list[tuple[re.Pattern, object]] = [
 
 POST_ROUTES: list[tuple[re.Pattern, object]] = [
     (re.compile(r"^/api/tours$"), lambda h, m: handle_tours_create(h)),
+    (re.compile(r"^/api/tours/import$"), lambda h, m: handle_tour_import(h)),
     (re.compile(r"^/api/tours/([^/]+)/files$"), lambda h, m: handle_tour_file_upload(h, m.group(1))),
     (re.compile(r"^/api/tours/([^/]+)/duplicate$"), lambda h, m: handle_tour_duplicate(h, m.group(1))),
     (re.compile(r"^/api/tours/([^/]+)$"), lambda h, m: handle_tour_save(h, m.group(1))),
@@ -662,7 +809,10 @@ def main() -> None:
     )
     args = parser.parse_args()
     host = "0.0.0.0" if args.lan else "127.0.0.1"
+    global SERVE_LAN
+    SERVE_LAN = args.lan
     seed_sample_tour()
+    prune_trash()
     server = build_server(args.port, host)
     print(f"Bridge Tour serving on http://127.0.0.1:{args.port}", flush=True)
     if args.lan:

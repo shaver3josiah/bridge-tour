@@ -57,9 +57,15 @@ types with the measurement fields each one needs, a defect register that
 exports as CSV in the same columns as the field-sketch tool, and a printable
 photo log.
 
-**Exports as a folder.** One ZIP containing a self-contained website: unzip it
-onto Netlify, S3, a shared drive, or any web server, and the tour runs with no
-server of ours anywhere in the picture.
+**Exports as a folder, imports as one too.** One ZIP containing a
+self-contained website: unzip it onto Netlify, S3, a shared drive, or any web
+server, and the tour runs with no server of ours anywhere in the picture. The
+same zip is the backup — *Import tour* on the home page brings it back whole,
+so a laptop swap or a colleague's copy is one round trip.
+
+**Hard to lose work.** Deleted tours sit in `tours/.trash` for 30 days.
+Start the server with `--lan` and the Share panel shows a link phones on the
+same wifi can open.
 
 Full walkthrough: **[docs/TOUR.md](docs/TOUR.md)**.
 

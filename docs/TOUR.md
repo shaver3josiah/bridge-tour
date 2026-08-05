@@ -28,6 +28,14 @@ normal tour, and deleting it sticks: it won't come back on the next start.
 Deleting anything — a tour, a scene, a hotspot — is two clicks on purpose:
 the button turns into **Confirm delete?** (a scene or hotspot just says
 **Confirm?**) and only fires if you click it again within a few seconds.
+And a deleted tour is not gone: it moves to `tours/.trash` and stays there for
+30 days. Getting one back is moving its folder up one level and restarting —
+delete was the one truly unrecoverable action in the app, and now it is not.
+
+**Import tour**, next to *New tour*, accepts the `export.zip` this app
+produces and brings the whole tour back — scenes, defects, photos. The export
+is not just the shareable site; it is the backup, and a laptop swap or a
+colleague's copy is one round trip through it.
 
 ## Make a tour
 
@@ -168,7 +176,13 @@ the button turns into **Confirm delete?** (a scene or hotspot just says
    A press and release with no movement in between opens the panel instead
    of doing nothing. **Move**, in the same panel, is kept as the way to do
    it without a pointer.
-6. **Aim each scene.** Drag to the view a visitor should land on, then
+6. **Mark the defects.** Every defect panel has **+ Another like this**:
+   it places the next defect of the same type and measurements on your next
+   click, and keeps going — ten spalls on one soffit are ten clicks, not ten
+   panel round-trips. The code and the note are never copied (the code is the
+   register's primary key), and Escape stops the run. Each mark's panel is one
+   click away whenever one of the ten needs its own note.
+7. **Aim each scene.** Drag to the view a visitor should land on, then
    *Set start view from here*.
 
    Until you do, a photo opens on whichever of two readings it supports,
@@ -180,11 +194,23 @@ the button turns into **Confirm delete?** (a scene or hotspot just says
    below the camera, so their bearing points at nothing, and it is discarded
    rather than aimed at. The sidebar says which reading a scene used, and
    *Set start view from here* replaces it for good.
-7. **Try it, then share.** **Start tour**, in the toolbar, saves and runs the
+8. **Try it, then share.** **Start tour**, in the toolbar, saves and runs the
    real viewer in a frame right over the editor, so you can click through
    your own links and come back — **Back to editing**, or Escape, closes it.
    **Preview tour**, in the Share panel, opens the same tour in a separate
    tab instead, the right one to send someone else to look at.
+
+In the Share panel, when the server was started with `--lan`
+(`python server.py --lan`, from any machine on the site wifi), a second link
+appears that phones and tablets on the same network can open directly — the
+address is the machine's own wifi address, worked out for you. Without
+`--lan` the panel says how to turn it on. Under the export button, the panel
+also says where the zip can go: Netlify Drop for a free public link, or any
+web host.
+
+First-time visitors to a shared tour get one sentence — *Drag to look
+around · click an arrow to walk through* — which disappears the moment they
+do either, or after eight seconds, and never comes back on that browser.
 
 Everything saves as you work — the status under the tour name reads
 *Saving…* then *Saved*. A failed save retries on its own and says so.
@@ -330,6 +356,16 @@ A forty-panorama bridge is a maze, so:
   than the winner of a coin toss: the search takes the best route and stops,
   which is right when there is one route and wrong when there are several.
 
+  When bearings are worked out as a tour opens, the sidebar says how many
+  and where they came from, and that Ctrl+Z takes the lot back — quiet, but
+  never invisible. Each derived arrow's tooltip names its source ("carried 2
+  photos from one that knows", "read off the map"), and the further a bearing
+  travelled to reach a photo, the more the wording suggests a glance.
+
+  On the plate, a photo set aside for carrying a fix from somewhere else gets
+  a warning chip under the note — one click selects it, so dragging it home is
+  the next motion.
+
   It only ever fills silence. A bearing the camera recorded, or one you turned
   by hand, is never touched — what it replaces is not a different answer but no
   answer at all: no compass in the viewer, no real angle on the plan, link
@@ -388,6 +424,10 @@ A forty-panorama bridge is a maze, so:
 - Picking a scene puts it in the address bar, so a link can point at one exact
   scene rather than the front door.
 - **Order by capture time** puts a folder drop back into the order it was walked.
+
+The pre-share check also watches photo-stop coverage: once any photo is
+assigned a stop, it lists the stops that still have none — while the site is
+still reachable and a missing Bearings photo costs a walk, not a second visit.
 
 Press **?** for the full list of keyboard shortcuts.
 
