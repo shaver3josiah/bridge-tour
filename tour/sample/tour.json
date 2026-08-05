@@ -1,0 +1,92 @@
+{
+  "id": "sample-tour",
+  "name": "Sample Apartment (delete me)",
+  "created": "2026-07-27T19:43:54.150347+00:00",
+  "updated": "2026-07-27T19:43:54.150347+00:00",
+  "settings": {
+    "startScene": "s1",
+    "littlePlanetIntro": true,
+    "autorotate": true,
+    "autorotateSpeed": 0.7,
+    "logo": "logo.png",
+    "logoLink": "https://example.com"
+  },
+  "scenes": [
+    {
+      "id": "s1",
+      "name": "Living Room",
+      "file": "s1.jpg",
+      "thumb": "s1.thumb.jpg",
+      "view": {
+        "yaw": 0,
+        "pitch": 0
+      },
+      "hotspots": [
+        {
+          "id": "h1",
+          "type": "link",
+          "yaw": 40,
+          "pitch": -8,
+          "target": "s2",
+          "label": "To the kitchen"
+        },
+        {
+          "id": "h2",
+          "type": "info",
+          "yaw": -50,
+          "pitch": 5,
+          "title": "Fireplace",
+          "text": "Original 1920s fireplace.\nRestored in 2024."
+        }
+      ]
+    },
+    {
+      "id": "s2",
+      "name": "Kitchen",
+      "file": "s2.jpg",
+      "thumb": "s2.thumb.jpg",
+      "view": {
+        "yaw": 0,
+        "pitch": 0
+      },
+      "hotspots": [
+        {
+          "id": "h3",
+          "type": "link",
+          "yaw": 120,
+          "pitch": -8,
+          "target": "s3",
+          "label": "Out to the terrace"
+        },
+        {
+          "id": "h4",
+          "type": "link",
+          "yaw": -140,
+          "pitch": -8,
+          "target": "s1",
+          "label": "Back to living room"
+        }
+      ]
+    },
+    {
+      "id": "s3",
+      "name": "Terrace",
+      "file": "s3.jpg",
+      "thumb": "s3.thumb.jpg",
+      "view": {
+        "yaw": 0,
+        "pitch": 0
+      },
+      "hotspots": [
+        {
+          "id": "h5",
+          "type": "link",
+          "yaw": 0,
+          "pitch": -12,
+          "target": "s1",
+          "label": "Back inside"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,3818 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan view, twenty photos — Bridge Tour</title>
+<style>
+
+  :root {
+    color-scheme: light dark;
+
+    /* ---- primitives. Lifted from the sibling inspection tool,
+       android/app/src/main/assets/bridge-sketch.html:147-171, so the two
+       tools read as one toolkit. Never referenced outside this block. ---- */
+    --p-bg-l:#E7EAEF;   --p-panel-l:#FFFFFF; --p-panel2-l:#F5F7FA;
+    --p-ink-l:#13181F;  --p-muted-l:#606A76; --p-line-l:#DCE1E8;
+    --p-bg-d:#0A0F1A;   --p-panel-d:#131826; --p-panel2-d:#1A2138;
+    --p-ink-d:#E8ECF4;  --p-muted-d:#94A3B8; --p-line-d:#2A3450;
+    --p-blue:#1763C2;   --p-blue-2:#2A7EE0;  --p-blue-tint:#EAF2FC; --p-blue-deep:#114E9C;
+    --p-blue-d:#2F80E8; --p-blue-2d:#4F9BEC; --p-blue-tint-d:#16243D;
+    --p-red:#C62828;    --p-red-d:#FF5A52;
+    --p-green:#2E7D32;  --p-green-d:#4CAF50;
+    --p-defect:#C0392B; --p-defect-d:#FF6B5E;
+    --p-amber:#B26A00;  --p-amber-d:#E0A02E;  /* derived: the sketch tool has no warning role */
+
+    /* ---- semantic roles: the only names the rest of the sheet may use.
+       Declared ONCE. The tempting `--x:#hex; --x:light-dark(...)` pair is not a
+       fallback: a custom property accepts any token stream at parse time, so an
+       engine without light-dark() keeps the SECOND declaration and every var()
+       consumer then dies invalid-at-computed-value-time. The real fallback is
+       the @supports block below. ---- */
+    --bg:light-dark(var(--p-bg-l),var(--p-bg-d));
+    --surface:light-dark(var(--p-panel-l),var(--p-panel-d));
+    --surface-raised:light-dark(var(--p-panel2-l),var(--p-panel2-d));
+    --ink:light-dark(var(--p-ink-l),var(--p-ink-d));
+    --ink-2:light-dark(var(--p-muted-l),var(--p-muted-d));
+    /* --ink-3 is the quietest tier that is still BODY text, so it is pinned at
+       4.62:1 on white rather than the 3.0:1 a muted grey wants to be. Every
+       12px label in the sidebar rides on it. */
+    --ink-3:light-dark(#6B7684,#8B98AD);
+    --line:light-dark(var(--p-line-l),var(--p-line-d));
+    --line-strong:light-dark(#C3CBD6,#586A90);
+    --accent:light-dark(var(--p-blue),var(--p-blue-d));
+    /* Light hover DARKENS, dark hover brightens. Reusing the sketch tool's
+       lighter --accent-2 here put white on #2A7EE0 at 4.07:1 — under the floor
+       on the hover state of the app's primary action. --accent-deep is 8.09:1. */
+    --accent-hover:light-dark(var(--p-blue-deep),var(--p-blue-2d));
+    /* Flips with the theme. White on the light accent #1763C2 is 5.83:1, but
+       white on the brighter dark-mode accent #2F80E8 is only 3.91:1 — under the
+       4.5:1 floor for a 15px button label. Dark ink on that same blue is 4.78:1.
+       (The pre-token app shipped 3.65:1 here, so this fixes an old defect
+       rather than introducing one.) */
+    --accent-ink:light-dark(#FFFFFF,#08121F);
+    --accent-tint:light-dark(var(--p-blue-tint),var(--p-blue-tint-d));
+    --accent-tint-strong:light-dark(#D6E6FA,#1E3357);
+    --danger:light-dark(var(--p-red),var(--p-red-d));
+    --warning:light-dark(var(--p-amber),var(--p-amber-d));
+    --success:light-dark(var(--p-green),var(--p-green-d));
+    --defect:light-dark(var(--p-defect),var(--p-defect-d));
+    /* Fixed by intent: a scrim sits on a photograph, and a photograph looks the
+       same in both themes. Never wrap these in light-dark(). */
+    --scrim:rgba(11,11,14,.72);
+    --scrim-strong:rgba(11,11,14,.86);
+
+    /* ---- spacing, 4px grid ---- */
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px;
+    --s6:24px; --s7:32px; --s8:40px; --s9:56px; --s10:80px;
+
+    /* ---- type: fixed, not fluid. Product UI is read at a consistent DPI and a
+       heading that shrinks inside a 320px rail looks worse, not better. ---- */
+    --t-xs:10px; --t-sm:12px; --t-md:15px; --t-lg:18px; --t-xl:22px; --t-2xl:26px;
+    --f-ui:-apple-system,"Segoe UI",Roboto,system-ui,sans-serif;
+    /* Plex Mono is named first so it is used on machines that already have it
+       (the Android capture app bundles it) and costs nothing on machines that
+       do not. Shipping the woff2 would mean two binaries, a server MIME token,
+       an export-filter token and a smoke-test assertion to make numerals match
+       a sibling tool — ui-monospace already renders a mono. */
+    --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+
+    /* ---- radius ---- */
+    --r-xs:6px; --r-sm:8px; --r-md:12px; --r-lg:16px; --r-pill:999px;
+
+    /* ---- elevation. Themed through the colour components rather than a
+       media query, so the data-theme hook below flips shadows and colours
+       together instead of leaving one behind. ---- */
+    --sh-1:0 1px 2px light-dark(rgba(17,28,44,.08),rgba(0,0,0,.45)),0 1px 1px light-dark(rgba(17,28,44,.04),rgba(0,0,0,.30));
+    --sh-2:0 4px 14px light-dark(rgba(17,28,44,.10),rgba(0,0,0,.55)),0 1px 3px light-dark(rgba(17,28,44,.06),rgba(0,0,0,.35));
+    --sh-3:0 14px 34px light-dark(rgba(17,28,44,.18),rgba(0,0,0,.60)),0 4px 12px light-dark(rgba(17,28,44,.08),rgba(0,0,0,.40));
+
+    /* ---- motion. One place to tune, one branch to disable. ---- */
+    --dur-fast:120ms; --dur-base:180ms; --dur-slow:620ms;
+    --ease-out:cubic-bezier(0.22,1,0.36,1);   /* ease-out-quart */
+    --ease-step:cubic-bezier(0.32,0,0.24,1);  /* the forward push into a scene */
+
+    /* ---- stacking. Photo Sphere Viewer's own 50/80/90/100/110 are sealed
+       inside .psv-container by its container-type:size, which establishes a
+       stacking context, so nothing here has to clear them. ---- */
+    --z-chrome:10;   /* .tour-title, .tour-logo */
+    --z-overlay:20;  /* .load-error */
+    --z-panel:30;    /* .hs-panel */
+    --z-tryout:40;   /* .tryout — its close button is a later sibling, so no z-index */
+    --z-toast:50;
+    /* ponytail: below .psv-fullscreen-emulation (9999), which only exists in a
+       browser with no Fullscreen API. The placing ghost would sit under an
+       emulated fullscreen viewer there. Raise it if that browser ever matters. */
+    --z-ghost:60;
+  }
+  /* An engine without light-dark() stores the function in the custom property
+     anyway — custom properties accept any token stream at parse time — so every
+     var() consumer would become invalid at computed-value time and the app would
+     render unstyled, not dark. A declaration-level fallback cannot fix that; only
+     re-declaring the roles can. Light is the fallback because this app is used
+     outdoors. */
+  @supports not (color: light-dark(#000, #fff)) {
+    :root {
+      --bg:#E7EAEF; --surface:#FFFFFF; --surface-raised:#F5F7FA;
+      --ink:#13181F; --ink-2:#606A76; --ink-3:#6B7684;
+      --line:#DCE1E8; --line-strong:#C3CBD6;
+      --accent:#1763C2; --accent-hover:#2A7EE0; --accent-ink:#FFFFFF;
+      --accent-tint:#EAF2FC; --accent-tint-strong:#D6E6FA;
+      --danger:#C62828; --warning:#B26A00; --success:#2E7D32; --defect:#C0392B;
+      --sh-1:0 1px 2px rgba(17,28,44,.08),0 1px 1px rgba(17,28,44,.04);
+      --sh-2:0 4px 14px rgba(17,28,44,.10),0 1px 3px rgba(17,28,44,.06);
+      --sh-3:0 14px 34px rgba(17,28,44,.18),0 4px 12px rgba(17,28,44,.08);
+    }
+    /* the photo chrome cannot ride color-scheme here, so pin it by hand */
+    .stage, #edit-psv { --surface:#131826; --surface-raised:#1A2138; --ink:#E8ECF4;
+      --ink-2:#94A3B8; --ink-3:#8B98AD; --line:rgba(255,255,255,.12); --line-strong:rgba(255,255,255,.20); }
+  }
+  :root[data-theme="light"] { color-scheme: light; }
+  :root[data-theme="dark"]  { color-scheme: dark; }
+
+  /* The panorama is a PHOTOGRAPH, and dark chrome around a photograph is not a
+     preference — it is how photographs are shown. color-scheme inherits, so
+     one declaration resolves every light-dark() inside the stage and the
+     editor's viewer to its dark value: the title plate, the load error, the
+     navbar, the loader, PSV's own panels. */
+  .stage, #edit-psv { color-scheme: dark; }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: var(--t-md)/1.5 var(--f-ui);
+  }
+  button { font: inherit; cursor: pointer; }
+  .num { font-variant-numeric: tabular-nums; font-family: var(--f-mono); }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+  }
+
+  /* ---------- home ---------- */
+  .home { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+  .home-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+  .home-head h1 { font-size: var(--t-2xl); font-weight: 700; margin: 0; }
+  .home-sub { color: var(--ink-2); margin: 0 0 28px; }
+  .btn {
+    background: var(--surface); color: var(--ink);
+    border: 1px solid var(--line); border-radius: var(--r-md);
+    padding: 8px 16px; transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+  }
+  .btn:hover { background: var(--surface-raised); }
+  .btn:active { transform: scale(0.98); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn:disabled { opacity: 0.4; cursor: default; }
+  .btn.primary { background: var(--accent); border-color: transparent; color: var(--accent-ink); }
+  .btn.primary:hover { background: var(--accent-hover); }
+  .btn.danger-text { color: var(--danger); }
+  .btn.danger-solid { background: var(--danger); border-color: transparent; color: var(--accent-ink); }
+  .create-row { display: none; gap: 8px; margin-bottom: 20px; }
+  .create-row.open { display: flex; }
+  .text-input {
+    flex: 1; max-width: 360px; background: var(--surface); color: var(--ink);
+    border: 1px solid var(--line-strong); border-radius: var(--r-md);
+    padding: 8px 14px; font: inherit;
+  }
+  .text-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+    background: var(--surface); border: 1px solid var(--line-strong);
+    border-radius: var(--r-pill); padding: 10px 20px; z-index: var(--z-toast); font-size: var(--t-md);
+    box-shadow: var(--sh-2);
+  }
+  .toast.error { border-color: var(--danger); color: var(--danger); }
+  .tour-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .tour-card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--r-lg); padding: 20px; display: flex; flex-direction: column; gap: 6px;
+  }
+  .tour-card h2 { margin: 0; font-size: var(--t-lg); font-weight: 600; overflow-wrap: anywhere; }
+  .tour-card .cover {
+    width: calc(100% + 40px); margin: -20px -20px 8px; height: 120px;
+    object-fit: cover; border-radius: var(--r-lg) var(--r-lg) 0 0; display: block;
+    background: var(--bg);
+  }
+  .tour-card .meta { color: var(--ink-2); font-size: var(--t-sm); }
+  .tour-card .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .empty-card {
+    grid-column: 1 / -1; text-align: center; padding: 56px 24px;
+    border: 1px dashed var(--line-strong); border-radius: var(--r-lg); color: var(--ink-2);
+  }
+  .state-note { color: var(--ink-2); padding: 24px 0; }
+  .state-note.error { color: var(--danger); }
+
+  /* ---------- viewer ---------- */
+  .stage { position: fixed; inset: 0; }
+  #psv { width: 100%; height: 100%; }
+  .tour-title {
+    position: absolute; top: 16px; left: 16px; z-index: var(--z-chrome);
+    background: var(--scrim); backdrop-filter: blur(8px);
+    border: 1px solid var(--line); border-radius: var(--r-md);
+    padding: 8px 14px; font-size: var(--t-md); font-weight: 600; max-width: min(60vw, 480px);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .tour-logo {
+    position: absolute; left: 16px; bottom: 56px; z-index: var(--z-chrome); display: block;
+  }
+  .tour-logo img { max-height: 56px; max-width: 160px; display: block; }
+  /* stepping to the next scene: lean forward, then settle */
+  .stage .psv-canvas-container { transition: transform var(--dur-slow) var(--ease-step); }
+  .stage.stepping .psv-canvas-container { transform: scale(1.14); }
+  @media (prefers-reduced-motion: reduce) {
+    .stage .psv-canvas-container { transition: none; }
+    .stage.stepping .psv-canvas-container { transform: none; }
+  }
+  /* top-right: the toolbar owns the top-left, the navbar owns the bottom */
+  .compass {
+    position: absolute; top: 16px; right: 16px; z-index: var(--z-chrome);
+    display: flex; align-items: center; gap: var(--s2);
+    background: var(--scrim); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.12); border-radius: var(--r-md);
+    padding: 6px 12px 6px 8px; color: #F2F2F7;
+  }
+  .compass[hidden] { display: none; }
+  .cmp-read { font-size: var(--t-sm); letter-spacing: 0.02em; }
+  .load-error {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: var(--z-overlay);
+    background: var(--surface); border: 1px solid var(--danger); color: var(--ink);
+    border-radius: var(--r-md); padding: 14px 20px; max-width: 80%; text-align: center;
+  }
+  .center-note {
+    position: fixed; inset: 0; display: flex; flex-direction: column; gap: 12px;
+    align-items: center; justify-content: center; text-align: center; padding: 24px;
+  }
+  .center-note .big { font-size: var(--t-lg); font-weight: 600; }
+  .center-note .sub { color: var(--ink-2); }
+  .center-note a { color: var(--accent); }
+  .spin {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 3px solid var(--line-strong); border-top-color: var(--accent);
+    animation: spin 800ms linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    .spin { animation-duration: 2s; }
+    .btn { transition: none; }
+  }
+
+  /* ---------- editor ---------- */
+  /* dvh, not vh: on a mobile browser 100vh is the viewport with the URL bar
+     retracted, so a vh-tall editor is taller than the screen and the toolbar
+     sits under the chrome. vh first for engines that lack dvh. */
+  .editor { display: flex; height: 100vh; height: 100dvh; position: relative; }
+  .side {
+    width: 320px; flex: none; background: var(--surface);
+    border-right: 1px solid var(--line); display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+  .side-head { padding: 16px; border-bottom: 1px solid var(--line); }
+  .side-head .back { color: var(--ink-2); text-decoration: none; font-size: var(--t-sm); }
+  .side-head .back:hover { color: var(--ink); }
+  .name-input {
+    width: 100%; margin-top: 8px; background: transparent; color: var(--ink);
+    border: 1px solid transparent; border-radius: 8px; padding: 6px 8px;
+    font-size: var(--t-lg); font-weight: 600;
+  }
+  .name-input:hover { border-color: var(--line); }
+  .name-input:focus-visible { outline: none; border-color: var(--accent); background: var(--bg); }
+  .save-status { font-size: var(--t-sm); color: var(--ink-3); margin-top: 4px; min-height: 16px; }
+  .save-status.saving { color: var(--ink-2); }
+  .save-status.error { color: var(--danger); }
+  .side-section { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  /* Sentence case, not a tracked uppercase eyebrow. Four of these stack down
+     one rail; as capitals they read as decoration repeating, and 12px tracked
+     capitals are harder to scan than 12px sentence case at the same size. */
+  .side-section h3 {
+    margin: 0 0 10px; font-size: var(--t-sm); font-weight: 600; color: var(--ink-2);
+  }
+  .scene-row {
+    display: flex; align-items: center; gap: 4px; padding: 6px; border-radius: 8px;
+    border: 1px solid transparent;
+  }
+  .scene-row:hover { background: var(--surface-raised); }
+  .scene-row.active { border-color: var(--accent); background: var(--accent-tint); }
+  .scene-pick {
+    flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px;
+    background: none; border: none; color: inherit; padding: 0 6px 0 0; cursor: pointer; text-align: left;
+  }
+  .scene-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+  .scene-row img { width: 56px; height: 28px; object-fit: cover; border-radius: 4px; flex: none; }
+  .scene-row .sn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-md); }
+  .start-btn {
+    font-size: var(--t-xs); letter-spacing: 0.04em; border-radius: 4px; padding: 1px 5px; flex: none;
+    background: none; border: 1px solid var(--line-strong); color: var(--ink-3); cursor: pointer;
+  }
+  .start-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .start-btn.on { color: var(--accent); border-color: var(--accent); cursor: default; }
+  .start-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .icon-btn.armed { color: var(--accent-ink); background: var(--danger); }
+  .sn-input {
+    flex: 1; min-width: 0; background: var(--bg); color: var(--ink);
+    border: 1px solid var(--accent); border-radius: 6px; padding: 2px 6px; font: inherit; font-size: var(--t-md);
+  }
+  .icon-btn {
+    background: none; border: none; color: var(--ink-3); padding: 2px 4px;
+    border-radius: 6px; font-size: var(--t-md); line-height: 1; flex: none;
+  }
+  .icon-btn:hover { color: var(--ink); background: rgba(255, 255, 255, 0.08); }
+  .icon-btn:focus-visible { outline: 2px solid var(--accent); }
+  .drop-zone {
+    margin-top: 10px; border: 1px dashed var(--line-strong); border-radius: var(--r-md);
+    padding: 18px 12px; text-align: center; color: var(--ink-2); font-size: var(--t-sm); cursor: pointer;
+  }
+  .drop-zone.drag { border-color: var(--accent); color: var(--accent); background: var(--accent-tint); }
+  .field { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 10px 0; font-size: var(--t-md); }
+  .field label { color: var(--ink-2); }
+  .field input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; }
+  .field input[type="number"], .field input[type="url"], .field select {
+    background: var(--bg); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 8px; padding: 5px 8px; font: inherit; font-size: var(--t-sm); max-width: 150px;
+  }
+  .field .file-line { display: flex; align-items: center; gap: 6px; }
+  .share-row { margin: 12px 0 0; }
+  .share-row label { display: block; font-size: var(--t-sm); color: var(--ink-2); margin-bottom: 4px; }
+  .share-row .copy { display: flex; gap: 6px; align-items: flex-start; }
+  .share-row input, .share-row textarea {
+    flex: 1; min-width: 0; background: var(--bg); color: var(--ink-2);
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px;
+    font-family: ui-monospace, Consolas, monospace; font-size: var(--t-sm); resize: vertical;
+  }
+  .share-row input:focus-visible, .share-row textarea:focus-visible { outline: 2px solid var(--accent); }
+  .share-row .btn { padding: 5px 10px; font-size: var(--t-sm); flex: none; }
+  a.btn { text-decoration: none; display: inline-block; }
+  .main-pane { flex: 1; position: relative; display: flex; flex-direction: column; min-width: 0; }
+  .toolbar {
+    display: flex; gap: 8px; align-items: center; padding: 10px 14px;
+    background: var(--surface); border-bottom: 1px solid var(--line); flex-wrap: wrap;
+  }
+  .toolbar .hint { color: var(--ink-2); font-size: var(--t-sm); margin-left: auto; }
+  .toolbar .hint.placing { color: var(--accent); }
+  #edit-psv { flex: 1; min-height: 0; }
+  /* Teaches the walk rather than announcing that nothing is here. Left-aligned
+     and capped at a readable measure: this is the one screen in the app whose
+     prose is long enough for line length to matter. */
+  .editor-empty {
+    flex: 1; display: flex; flex-direction: column; gap: var(--s3);
+    align-items: flex-start; justify-content: center;
+    color: var(--ink-2); padding: var(--s6);
+    max-width: 62ch; margin: 0 auto; overflow-y: auto;
+  }
+  .editor-empty h2 { margin: 0; font-size: var(--t-xl); color: var(--ink); text-wrap: balance; }
+  .editor-empty p { margin: 0; }
+  .ee-lead { color: var(--ink); font-weight: 600; margin-top: var(--s3); }
+  /* max-content, not a fixed ch width: "Loop closure" and "Underside lattice"
+     differ by five characters, and a fixed column wraps the longer one */
+  .ee-phases {
+    list-style: none; counter-reset: phase; margin: 0; padding: 0;
+    display: grid; grid-template-columns: max-content 1fr; gap: var(--s2) var(--s4);
+    align-items: baseline; width: 100%;
+  }
+  .ee-phases li { display: contents; counter-increment: phase; }
+  .ee-name { color: var(--ink); font-weight: 600; font-size: var(--t-sm); white-space: nowrap; }
+  .ee-name::before { content: counter(phase) ". "; color: var(--ink-3); font-weight: 400; }
+  .ee-what { font-size: var(--t-sm); }
+  .ee-actions { display: flex; gap: var(--s2); margin-top: var(--s3); flex-wrap: wrap; }
+
+  .empty-card h2 { margin: 0 0 var(--s2); font-size: var(--t-lg); color: var(--ink); }
+  .empty-card p { margin: 0 auto var(--s2); max-width: 52ch; }
+  .empty-card .ec-next { margin-bottom: 0; }
+
+  /* per-file progress through a folder of forty panoramas */
+  .drop-zone progress { width: 100%; height: 4px; margin-top: var(--s2); display: block; }
+  .up-name {
+    display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: var(--ink-3); font-size: var(--t-sm);
+  }
+  .hs-panel {
+    position: absolute; top: 60px; right: 14px; z-index: var(--z-panel); width: 300px;
+    background: var(--surface); border: 1px solid var(--line-strong);
+    border-radius: var(--r-lg); padding: 16px; box-shadow: var(--sh-3);
+  }
+  .hs-panel h4 { margin: 0 0 10px; font-size: var(--t-md); }
+  .hs-panel .frow { margin: 8px 0; display: flex; flex-direction: column; gap: 4px; }
+  .hs-panel .frow label { font-size: var(--t-sm); color: var(--ink-2); }
+  .hs-panel input[type="text"], .hs-panel textarea, .hs-panel select {
+    background: var(--bg); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 8px; padding: 6px 8px; font: inherit; font-size: var(--t-sm); width: 100%;
+  }
+  .hs-panel textarea { min-height: 64px; resize: vertical; }
+  .hs-panel .row { display: flex; gap: 8px; margin-top: 12px; }
+  .hs-panel input.invalid { border-color: var(--danger); }
+  .field-note { font-size: var(--t-sm); color: var(--danger); min-height: 13px; }
+  .icon-btn:disabled { opacity: 0.28; cursor: default; background: none; color: var(--ink-3); }
+
+  /* ---------- build mode: the link-laying bar ---------- */
+  .btn.on { background: var(--accent); border-color: transparent; color: var(--accent-ink); }
+  .btn.on:hover { background: var(--accent-hover); }
+  .build-bar {
+    display: none; gap: 12px; align-items: center; flex-wrap: wrap;
+    padding: 8px 14px; background: var(--accent-tint);
+    border-bottom: 1px solid var(--line);
+  }
+  .build-bar.open { display: flex; }
+  /* --ink-2, not --ink-3: this label sits on --accent-tint, where the quiet
+     tier lands at 3.9:1 instead of the 4.62:1 it clears on a plain surface. */
+  .bb-label {
+    font-size: var(--t-sm); font-weight: 600; color: var(--ink-2); flex: none;
+  }
+  .bb-chips { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 120px; }
+  .bb-chip {
+    display: flex; align-items: center; gap: 7px; max-width: 210px;
+    padding: 3px 11px 3px 3px; font-size: var(--t-sm); color: var(--ink);
+    background: var(--surface); border: 1px solid var(--line-strong); border-radius: 999px;
+  }
+  .bb-chip img { width: 30px; height: 18px; object-fit: cover; border-radius: 999px; flex: none; }
+  .bb-chip .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bb-chip .tick { color: var(--success); flex: none; font-size: var(--t-sm); }
+  .bb-chip.on { border-color: var(--accent); background: var(--accent-tint-strong); }
+  .bb-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .bb-return { display: flex; align-items: center; gap: 6px; font-size: var(--t-sm); color: var(--ink-2); flex: none; }
+  .bb-return input { accent-color: var(--accent); width: 16px; height: 16px; }
+
+  /* ---------- scene coverage sliders ---------- */
+  .range-row { display: flex; align-items: center; gap: 8px; margin: 9px 0; }
+  .range-row > label { font-size: var(--t-sm); color: var(--ink-2); width: 58px; flex: none; }
+  .range-row input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
+  .range-row .val { font-size: var(--t-sm); color: var(--ink-2); width: 46px; text-align: right; flex: none; }
+  .scene-note { font-size: var(--t-sm); color: var(--ink-3); margin: 4px 0 0; }
+
+  /* the hotspot you are about to drop, riding the cursor until you place it */
+  .place-ghost {
+    position: fixed; z-index: var(--z-ghost); pointer-events: none;
+    transform: translate(-50%, -50%); opacity: 0.9;
+    filter: drop-shadow(0 0 8px var(--accent));
+  }
+
+  /* walking the tour without leaving the editor */
+  .tryout { position: absolute; inset: 0; z-index: var(--z-tryout); background: var(--bg); }
+  .tryout iframe { display: block; width: 100%; height: 100%; border: 0; }
+  .tryout-close {
+    position: absolute; top: 14px; right: 14px;
+    background: var(--scrim-strong); backdrop-filter: blur(8px);
+  }
+
+  /* The same plan plate the sidebar carries, lifted over the panorama and
+     given the room the job actually needs — see toggleMap(). The summary is
+     collapse chrome for the sidebar; out here the map IS the view. */
+  .map-view {
+    position: absolute; inset: 0; z-index: var(--z-tryout);
+    background: var(--bg); display: flex; flex-direction: column;
+    animation: map-in var(--dur-base) var(--ease-out);
+  }
+  @keyframes map-in { from { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .map-view { animation: none; } }
+  .map-head {
+    display: flex; align-items: center; gap: var(--s3) var(--s5); flex-wrap: wrap;
+    padding: var(--s3) var(--s5); border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .map-head h2 { margin: 0; font-size: var(--t-lg); font-weight: 600; }
+  .map-head .map-close { margin-left: auto; }
+  /* the dot vocabulary, said once, where there is room to say it */
+  .map-legend {
+    display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4);
+    margin: 0; padding: 0; list-style: none;
+    font-size: var(--t-sm); color: var(--ink-2);
+  }
+  .map-legend li { display: flex; align-items: center; gap: var(--s2); }
+  .lg {
+    width: 11px; height: 11px; border-radius: 50%; flex: none;
+    background: var(--surface); border: 2px solid var(--ink-3);
+  }
+  .lg-guess { border-style: dashed; background: transparent; }
+  .lg-manual { background: var(--ink-3); }
+  .lg-on { background: var(--accent); border-color: var(--accent); }
+  .lg-stray { border-color: var(--danger); }
+  .lg-aim {
+    border: 0; border-radius: 0; background: none;
+    color: var(--ink-3); font-size: 13px; line-height: 11px; text-align: center;
+  }
+  .lg-aim::before { content: '\2191'; }
+  /* `safe` centring: a centred grid item that outgrows its scroll box gets its
+     top and left pushed off the start edge, where no amount of scrolling
+     reaches them — so zoomed in past the window, the top-left quarter of the
+     plan would simply be unreachable. `safe` falls back to start alignment at
+     exactly that point. */
+  .map-scroll {
+    flex: 1; overflow: auto; display: grid; place-items: safe center; padding: var(--s5);
+  }
+  /* One plate, sized by the zoom control in the header. The dots, the arrows
+     and the grid are all in percentages, so growing the sheet is the whole of
+     zooming — nothing re-lays-out, and .map-scroll pans what no longer fits.
+
+     Zooming anchors on the pointer by scrolling (see toggleMap), which means it
+     is exact in an axis that HAS somewhere to scroll, and grows from the middle
+     in one that does not — an axis where the whole plate already fits, so
+     nothing is off screen to go looking for. On a wide window that is the
+     horizontal one until about 2.4x. Making it exact at every zoom means
+     driving pan from a transform rather than from a scroll box, and that trades
+     real scrollbars, momentum and keyboard scrolling for hand-rolled ones;
+     worth doing only if this ever stops feeling right in the hand. */
+  .map-sheet { width: calc(min(70vh, 92vw) * var(--map-zoom, 1)); }
+  .map-zoom, .map-opt { display: flex; align-items: center; gap: var(--s2); font-size: var(--t-sm); color: var(--ink-2); }
+  .map-zoom input { width: 120px; }
+  .map-opt select { font-size: var(--t-sm); padding: 2px var(--s2); }
+  /* `.plan > summary` below is the same specificity and comes later, so this
+     has to out-weigh it or the overlay wears the sidebar's collapse chrome —
+     a second "Plan view" title and an expand button already expanded. */
+  .map-view details.plan > summary { display: none; }
+  .map-view .plan-how { font-size: var(--t-md); margin-bottom: var(--s3); text-wrap: pretty; }
+  .map-view #plan-note { font-size: var(--t-sm); margin-top: var(--s3); text-wrap: pretty; }
+  .map-view #plan-reset { width: auto; margin-top: var(--s3); }
+  .map-view .plan-box { --plan-dot: 15px; }
+  /* names fit out here — on the sidebar plate they would bury the dots */
+  .map-view .plan-dot[data-name]::after {
+    content: attr(data-name); position: absolute; top: calc(100% + 4px); left: 50%;
+    transform: translateX(-50%); max-width: 120px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: var(--t-xs); line-height: 1.3; color: var(--ink-2);
+    background: var(--bg); padding: 0 4px; border-radius: var(--r-xs);
+    pointer-events: none;
+  }
+
+  /* hotspots are draggable in the editor only — in the viewer they are buttons */
+  #edit-psv .psv-marker { cursor: grab; }
+  /* nothing else says "you can pick this up", so hover has to */
+  #edit-psv .psv-marker:hover { filter: drop-shadow(0 0 7px var(--accent)); }
+  #edit-psv.dragging-hotspot, #edit-psv.dragging-hotspot .psv-marker { cursor: grabbing; }
+  #edit-psv.dragging-hotspot .psv-marker { filter: drop-shadow(0 0 9px var(--accent)); }
+
+  /* ---------- the inspection title block ----------
+     <details> because the header is written once and read rarely, and it must
+     not push the scene list — the thing actually being worked on — down the
+     rail. Native disclosure, no JS, keyboard and screen reader included. */
+  .insp > summary {
+    display: flex; align-items: center; gap: var(--s2);
+    font-size: var(--t-sm); font-weight: 600; color: var(--ink-2);
+    cursor: pointer; list-style-position: inside;
+  }
+  .insp > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-xs); }
+  .insp[open] > summary { margin-bottom: var(--s3); }
+  .insp-tally {
+    margin-left: auto; font-size: var(--t-sm); color: var(--ink-2);
+    background: var(--surface-raised); border: 1px solid var(--line);
+    border-radius: var(--r-pill); padding: 1px 8px;
+  }
+  .insp-tally.done { color: var(--success); border-color: var(--success); }
+  .insp .frow { display: flex; flex-direction: column; gap: var(--s1); margin: var(--s3) 0; }
+  .insp .frow label { font-size: var(--t-sm); color: var(--ink-2); }
+  .insp input {
+    background: var(--bg); color: var(--ink); border: 1px solid var(--line);
+    border-radius: var(--r-sm); padding: 6px 8px; font: inherit; font-size: var(--t-sm); width: 100%;
+  }
+  .insp input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .cov-head { margin: var(--s5) 0 var(--s2); font-size: var(--t-sm); font-weight: 600; color: var(--ink-2); }
+  .cov { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+  .cov li {
+    display: flex; align-items: center; gap: var(--s2);
+    font-size: var(--t-sm); color: var(--ink-3); padding: 3px 0;
+  }
+  .cov li.on { color: var(--ink); }
+  .cov-mark {
+    width: 16px; height: 16px; flex: none; display: grid; place-items: center;
+    border: 1px solid var(--line-strong); border-radius: var(--r-xs);
+    font-size: var(--t-xs); line-height: 1;
+  }
+  .cov li.on .cov-mark { background: var(--success); border-color: transparent; color: var(--accent-ink); }
+  .cov-name { flex: 1; min-width: 0; }
+  .cov-n { color: var(--ink-2); }
+
+  /* This scene: same field vocabulary as everything around it. Shipped bare
+     first time round, so a UA-chrome select sat beside styled siblings. */
+  #scene-meta .frow { display: flex; flex-direction: column; gap: var(--s1); margin: var(--s3) 0; }
+  #scene-meta .frow label { font-size: var(--t-sm); color: var(--ink-2); }
+  #scene-meta input, #scene-meta select {
+    background: var(--bg); color: var(--ink); border: 1px solid var(--line);
+    border-radius: var(--r-sm); padding: 6px 8px; font: inherit; font-size: var(--t-sm); width: 100%;
+  }
+  #scene-meta input:hover, #scene-meta select:hover { border-color: var(--line-strong); }
+  #scene-meta input:focus-visible, #scene-meta select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  @media (max-width: 960px), (pointer: coarse) {
+    #scene-meta input, #scene-meta select { min-height: 44px; }
+  }
+
+  /* ---------- plan view ----------
+     In the rail, not floating over the panorama: an overlay would land on the
+     viewer's own navbar, and a plan belongs beside the list it indexes. */
+  .plan { margin-top: var(--s3); }
+  .plan > summary {
+    display: flex; align-items: center; gap: var(--s2); cursor: pointer;
+    font-size: var(--t-sm); color: var(--ink-2); list-style-position: inside; padding: var(--s1) 0;
+  }
+  .plan > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-xs); }
+  .plan-span { margin-left: auto; font-size: var(--t-sm); color: var(--ink-3); }
+  .plan-how { margin: 0 0 var(--s2); }
+  /* in CSS rather than an inline width, so the overlay below can size it to its
+     own text instead of stretching a rarely-used action across the whole plate */
+  #plan-reset { width: 100%; }
+  .plan-box {
+    position: relative; aspect-ratio: 1; margin: var(--s2) 0;
+    background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm);
+    /* north is up, and a grid says "sketch" rather than "survey". Ruled at a
+       round number of metres when the plate has a scale — renderPlan sets
+       --plan-grid — and at plain quarters when it does not. */
+    background-image: linear-gradient(var(--line) 1px, transparent 1px),
+                      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: var(--plan-grid, 25%) var(--plan-grid, 25%);
+    background-position: -1px -1px;
+  }
+  .plan-box:empty { opacity: 0.5; }
+  /* the structure and the links, under the photos: absolutely positioned so the
+     dots keep using the same percentage coordinates they always did */
+  .plan-lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  /* the deck reads as a deck: a band you could drive on, a centreline, and a
+     tick across each end where the abutments are. The band alone is stroked in
+     the plate's own units rather than pixels, so it stays the same width as the
+     kerbs and abutment ticks drawn either side of it at any plate size. */
+  .plan-deck .band { stroke: var(--ink-3); stroke-width: 6; stroke-linecap: butt; opacity: .16; }
+  .plan-deck .edge, .plan-deck .abut { stroke: var(--ink-3); stroke-width: 1.5; opacity: .5; }
+  .plan-deck .mid { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 5 5; opacity: .45; }
+  /* a walkable pair is a plain line; a one-way link is dashed and carries the
+     arrow, because from the far side it is a dead end */
+  .plan-edges line { stroke: var(--ink-3); stroke-width: 1.5; opacity: .75; }
+  .plan-edges line.one { stroke-dasharray: 4 3; }
+  .plan-edges line.on { stroke: var(--accent); opacity: 1; stroke-width: 2; }
+  .plan-arrow { fill: var(--ink-3); }
+  /* Which way each photo looks, as a filled dart you can take hold of and turn.
+
+     Sized off the dot, not off the plate: the marks on this plate are UI rather
+     than terrain, so they hold their size as you zoom, and an arrow measured in
+     plate percent would have drifted from a fixed-pixel dot at every zoom step
+     until it was twelve dot-widths long at 4x. Its tip sits two dot-diameters
+     out and its tail clears the dot, so it reads as belonging to that photo
+     without ever covering it.
+
+     Filled, blunt and slightly notched rather than a thin chevron: at 30px a
+     hairline arrow is a scratch, and a shape with some body to it is legible at
+     a glance across twenty of them. Round joins do the softening, which is
+     cheaper and truer than drawing curves. */
+  .plan-aim {
+    position: absolute; padding: 0; border: 0; background: none;
+    width: calc(var(--plan-dot) * 4); height: calc(var(--plan-dot) * 4);
+    color: var(--ink-3);
+    /* the shape re-enables hits; the box must not, or it would swallow the dot
+       it is centred on and picking a photo up would turn it instead */
+    pointer-events: none;
+    cursor: grab; touch-action: none;
+  }
+  .plan-aim svg { display: block; width: 100%; height: 100%; }
+  .plan-aim path {
+    fill: currentColor; stroke: currentColor; stroke-width: 4; stroke-linejoin: round;
+    pointer-events: auto;
+  }
+  /* Hollow says "no bearing yet", exactly as a hollow dot says "guessed" — the
+     plate already has that vocabulary and this is the same claim about the same
+     photo. Never a lighter grey: these carry meaning, so they hold the 3:1 a
+     meaningful graphic owes its background, in both themes. */
+  .plan-aim.unset path { fill: none; }
+  .plan-aim.on, .plan-aim:hover, .plan-aim:focus-visible { color: var(--accent); }
+  .plan-aim:focus { outline: none; }
+  .plan-aim:focus-visible { outline: 2px solid var(--accent); outline-offset: -6px; border-radius: var(--r-sm); }
+  .plan-aim.turning { cursor: grabbing; }
+  /* A hairline is not a click target. These are the same edges again, eleven
+     pixels wide and invisible, purely so a link can be cut by pointing at it —
+     and they say so on hover rather than only in the note. */
+  .plan-cuts line { stroke: transparent; stroke-width: 11; pointer-events: stroke; cursor: pointer; }
+  .plan-cuts line:hover { stroke: var(--danger); stroke-opacity: .3; }
+  @media (pointer: coarse) { .plan-cuts line { stroke-width: 18; } }
+  /* the link being drawn by a drag, from the photo to the cursor */
+  .plan-band { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 4 4; }
+  .plan-band[hidden] { display: none; }
+  /* One number for how big a photo's mark is. The arrow beside it is sized off
+     this too, so "the arrow is twice the dot across" stays true at every place
+     the dot changes size — the full-size map and coarse pointers both reset it
+     rather than restating the arrow's own dimensions. */
+  .plan-box { --plan-dot: 11px; }
+  .plan-dot {
+    position: absolute; width: var(--plan-dot); height: var(--plan-dot); padding: 0;
+    transform: translate(-50%, -50%); border-radius: 50%;
+    background: var(--surface); border: 2px solid var(--ink-3); cursor: pointer;
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+  /* Three kinds, and they have to be told apart at eleven pixels without
+     relying on colour alone: a measured position is solid, a guessed one is
+     hollow and dashed, a hand-placed one is filled. */
+  .plan-dot.k-guess { border-style: dashed; background: transparent; }
+  .plan-dot.k-manual { background: var(--ink-3); }
+  button.plan-dot { cursor: grab; touch-action: none; }
+  button.plan-dot:hover { transform: translate(-50%, -50%) scale(1.35); border-color: var(--accent); }
+  button.plan-dot:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .plan-dot.on { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
+  /* After .on deliberately: the photo you are editing can also be the one
+     nothing links to, and both facts have to survive on one eleven-pixel mark.
+     Accent fill says "here", danger ring says "and it is not in the walk". */
+  /* colour only, never the border STYLE: dashed already means "this position
+     is a guess", and forcing it solid to say "unreachable" would trade one
+     fact for the other on a mark that has to carry both. */
+  .plan-dot.stray { border-color: var(--danger); }
+  /* How many defects were marked on this photo. --accent-ink is the light-dark
+     pair that stays legible on --defect in both themes — 5.4:1 on the light
+     theme's #C0392B, 6.7:1 on the dark theme's #FF6B5E. Plain white would hold
+     up on the first and fall to 2.8:1 on the second, which is why the count is
+     not simply white. */
+  .plan-def {
+    position: absolute; left: 72%; bottom: 72%;
+    min-width: 14px; height: 14px; padding: 0 3px;
+    border-radius: var(--r-pill); background: var(--defect); color: var(--accent-ink);
+    font-size: var(--t-xs); line-height: 14px; text-align: center;
+    pointer-events: none; box-shadow: 0 0 0 1.5px var(--bg);
+  }
+  /* North was only ever claimed in a source comment; the bar is one grid cell,
+     so a distance can be stepped off the plate instead of guessed at. */
+  .plan-north {
+    position: absolute; right: 7px; top: 9px; pointer-events: none;
+    font-size: var(--t-xs); font-weight: 600; color: var(--ink-3); letter-spacing: .04em;
+  }
+  .plan-north::after {
+    content: ''; position: absolute; left: 50%; top: -6px; transform: translateX(-50%);
+    border-left: 3.5px solid transparent; border-right: 3.5px solid transparent;
+    border-bottom: 6px solid var(--ink-3);
+  }
+  .plan-scale {
+    position: absolute; left: 9px; bottom: 7px; pointer-events: none;
+    font-size: var(--t-xs); line-height: 1.5; color: var(--ink-2);
+    text-align: center; white-space: nowrap;
+  }
+  .plan-scale::before {
+    content: ''; display: block; height: 5px; opacity: .75;
+    border: 1px solid var(--ink-3); border-top: 0;
+  }
+  /* Plant on the deck, drawn as the thing it is: every photo on this plate is a
+     circle, and the one mark that is not a photo should not read as one. */
+  .plan-truck {
+    position: absolute; width: 26px; height: 14px;
+    transform: translate(-50%, -50%);
+    fill: none; stroke: var(--warning); stroke-width: 1.4;
+    pointer-events: none; overflow: visible;
+  }
+  .plan-dot.dragging {
+    cursor: grabbing; transition: none; z-index: 1;
+    transform: translate(-50%, -50%) scale(1.5); border-color: var(--accent);
+  }
+  /* the photo a drag is hovering over: drop here and the two get connected */
+  .plan-dot.target {
+    border-color: var(--accent); background: var(--accent-tint);
+    box-shadow: 0 0 0 4px var(--accent-tint); z-index: 1;
+  }
+  @media (prefers-reduced-motion: reduce) { .plan-dot { transition: none; } }
+  /* a coarse pointer cannot hit eleven pixels: grow the target without growing
+     the mark, so the plate still reads as a sketch */
+  @media (pointer: coarse) {
+    button.plan-dot::before { content: ''; position: absolute; inset: -12px; }
+  }
+
+  /* scene groups: a flat rail is right for six photos and a scroll for forty */
+  .sgroup { border-top: 1px solid var(--line); }
+  .sgroup:first-of-type { border-top: 0; }
+  .sgroup > summary {
+    display: flex; align-items: center; gap: var(--s2); cursor: pointer;
+    font-size: var(--t-sm); font-weight: 600; color: var(--ink-2);
+    padding: var(--s2) 0; list-style-position: inside;
+  }
+  .sgroup > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-xs); }
+  .sg-n {
+    margin-left: auto; font-size: var(--t-sm); color: var(--ink-3);
+    background: var(--surface-raised); border-radius: var(--r-pill); padding: 0 7px;
+  }
+  .sg-body { padding-bottom: var(--s2); }
+
+  /* ---------- pre-share check ----------
+     A <details>, not a modal. A modal would interrupt the one moment the user
+     is certain about what they want, and every finding here is advisory. */
+  .preflight > summary {
+    display: flex; align-items: center; gap: var(--s2); cursor: pointer;
+    font-size: var(--t-sm); color: var(--ink-2); list-style-position: inside;
+    padding: var(--s1) 0;
+  }
+  .preflight > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-xs); }
+  .pf-count {
+    margin-left: auto; font-size: var(--t-sm); padding: 1px 8px;
+    border: 1px solid var(--warning); color: var(--warning); border-radius: var(--r-pill);
+  }
+  .pf-count.clear { border-color: var(--success); color: var(--success); }
+  .pf-list {
+    list-style: none; margin: var(--s2) 0 0; padding: 0;
+    display: grid; gap: var(--s2); font-size: var(--t-sm); color: var(--ink-2);
+  }
+  .pf-list li { padding-left: var(--s4); text-indent: calc(var(--s4) * -1); }
+  .pf-list li::before { content: "•"; color: var(--warning); padding-right: var(--s2); }
+  .pf-list .pf-ok::before { content: "✓"; color: var(--success); }
+
+  /* ---------- the defect register ---------- */
+  /* The one place --defect earns a control of its own. It is a border and a
+     text colour, never a filled button: a solid red button in a toolbar reads
+     as "destructive", and this one creates a record. */
+  .btn.defect { color: var(--defect); border-color: color-mix(in srgb, var(--defect) 45%, var(--line)); }
+  .btn.defect:hover { background: color-mix(in srgb, var(--defect) 10%, transparent); }
+  @supports not (color: color-mix(in srgb, red 50%, blue)) {
+    .btn.defect { border-color: var(--defect); }
+  }
+  .code-chip {
+    font-size: var(--t-sm); font-weight: 600; color: var(--defect);
+    border: 1px solid var(--defect); border-radius: var(--r-xs);
+    padding: 1px 6px; margin-left: var(--s1); vertical-align: 1px;
+  }
+  /* Quantised measurements, the same increments the field sketch offers. A
+     segmented row rather than a dropdown because these are the five answers
+     you actually give, and one tap beats open-scroll-pick with a glove on. */
+  .seg { display: flex; flex-wrap: wrap; gap: var(--s1); }
+  .seg-btn {
+    flex: 1 0 auto; min-width: 62px; padding: 7px 8px; font-size: var(--t-sm);
+    background: var(--surface-raised); color: var(--ink-2);
+    border: 1px solid var(--line); border-radius: var(--r-sm);
+    transition: background var(--dur-fast) var(--ease-out);
+  }
+  .seg-btn:hover { background: var(--accent-tint); color: var(--ink); }
+  .seg-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .seg-btn.on { background: var(--accent); border-color: transparent; color: var(--accent-ink); }
+  .seg-btn:disabled { opacity: 0.4; cursor: default; }
+  @media (prefers-reduced-motion: reduce) { .seg-btn { transition: none; } }
+  @media (max-width: 960px), (pointer: coarse) { .seg-btn { min-height: 44px; } }
+
+  /* shape picker */
+  .shape-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .shape-btn {
+    width: 38px; height: 38px; padding: 4px; display: grid; place-items: center;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 9px;
+  }
+  .shape-btn img { width: 26px; height: 26px; display: block; }
+  .shape-btn.on { border-color: var(--accent); background: var(--accent-tint); }
+  .shape-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .hs-panel .range-row > label { width: 52px; }
+  .orphan { width: 7px; height: 7px; border-radius: 50%; background: var(--danger); flex: none; }
+
+  /* ---------- field conditions: a tablet, outdoors, possibly gloved ----------
+     ONE breakpoint governs both the drawer and the finger-sized targets. A
+     landscape tablet at 1024px reports pointer:coarse and wants both, for the
+     same reason. A touchscreen laptop driven by a mouse reports pointer:fine
+     and rightly keeps the desktop layout.
+     ponytail: the case this misses is that same laptop folded into tablet mode,
+     which still reports pointer:fine at 1920px. `any-pointer: coarse` is the
+     upgrade if that ever turns out to matter — it costs a touchscreen laptop
+     big targets while mousing, which is why it is not the default. */
+  .drawer-toggle, .drawer-scrim { display: none; }
+
+  /* Six tab stops per scene row means a keyboard user pays for every photo in
+     the tour before reaching the panorama. One link buys the whole way past. */
+  .skip {
+    position: absolute; left: var(--s2); top: -100px; z-index: var(--z-toast);
+    background: var(--accent); color: var(--accent-ink); text-decoration: none;
+    padding: 10px 16px; border-radius: var(--r-sm); box-shadow: var(--sh-2);
+    transition: top var(--dur-fast) var(--ease-out);
+  }
+  .skip:focus { top: var(--s2); }
+  #main-pane:focus { outline: none; }
+  #main-pane:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  @media (prefers-reduced-motion: reduce) { .skip { transition: none; } }
+
+  /* Jump-to. <dialog> again: backdrop, Escape, focus trap, inertness, free. */
+  .palette {
+    border: 1px solid var(--line-strong); border-radius: var(--r-lg);
+    background: var(--surface); color: var(--ink); box-shadow: var(--sh-3);
+    padding: 0; width: min(560px, calc(100vw - var(--s8)));
+    margin-top: 12vh; overflow: hidden;
+  }
+  .palette::backdrop { background: rgba(11, 14, 20, 0.55); }
+  .palette #pal-q {
+    width: 100%; border: 0; border-bottom: 1px solid var(--line); background: transparent;
+    color: var(--ink); font: inherit; font-size: var(--t-lg); padding: var(--s4) var(--s5);
+  }
+  .palette #pal-q:focus { outline: none; }
+  .pal-list { list-style: none; margin: 0; padding: var(--s2); max-height: 52vh; overflow-y: auto; }
+  .pal-list li {
+    display: flex; align-items: baseline; gap: var(--s3);
+    padding: 8px var(--s3); border-radius: var(--r-sm); cursor: pointer;
+  }
+  .pal-list li.on { background: var(--accent-tint); }
+  .pal-kind {
+    flex: none; font-size: var(--t-xs); font-weight: 600; color: var(--ink-2);
+    border: 1px solid var(--line-strong); border-radius: var(--r-xs); padding: 1px 5px;
+  }
+  .pal-kind.defect { color: var(--defect); border-color: var(--defect); }
+  .pal-label { flex: none; color: var(--ink); }
+  .pal-detail {
+    flex: 1; min-width: 0; font-size: var(--t-sm); color: var(--ink-2);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right;
+  }
+  .pal-none { color: var(--ink-2); cursor: default; }
+  @media (max-width: 960px), (pointer: coarse) { .pal-list li { min-height: 44px; } }
+
+  /* keyboard help. <dialog> brings the backdrop, Escape, focus trap and
+     inertness for free — none of that is worth hand-writing. */
+  .help-sheet {
+    border: 1px solid var(--line-strong); border-radius: var(--r-lg);
+    background: var(--surface); color: var(--ink); box-shadow: var(--sh-3);
+    padding: var(--s6); max-width: 420px; width: calc(100vw - var(--s8));
+  }
+  .help-sheet::backdrop { background: rgba(11, 14, 20, 0.55); }
+  .help-sheet h4 { margin: 0 0 var(--s4); font-size: var(--t-lg); }
+  .help-sheet dl {
+    display: grid; grid-template-columns: max-content 1fr;
+    gap: var(--s2) var(--s4); margin: 0 0 var(--s5);
+  }
+  .help-sheet dt { margin: 0; }
+  .help-sheet dd { margin: 0; color: var(--ink-2); }
+  .help-sheet kbd {
+    font: 500 var(--t-sm)/1 var(--f-mono); background: var(--surface-raised);
+    border: 1px solid var(--line); border-bottom-width: 2px;
+    border-radius: var(--r-xs); padding: 4px 7px; display: inline-block; color: var(--ink);
+  }
+  .help-sheet form { display: flex; justify-content: flex-end; }
+
+  @media (max-width: 960px), (pointer: coarse) {
+    .side {
+      position: fixed; z-index: var(--z-panel); inset: 0 auto 0 0;
+      width: min(340px, 86vw); box-shadow: var(--sh-3);
+      transform: translateX(-100%); visibility: hidden;
+      /* visibility lags the slide out, so a closed drawer leaves the tab order
+         instead of sitting off-screen collecting focus */
+      transition: transform var(--dur-base) var(--ease-out), visibility 0s linear var(--dur-base);
+    }
+    .editor.panels-open .side { transform: none; visibility: visible; transition-delay: 0s; }
+    .drawer-scrim {
+      display: block; position: fixed; inset: 0; z-index: calc(var(--z-panel) - 1);
+      background: var(--scrim); opacity: 0; pointer-events: none;
+      transition: opacity var(--dur-base) var(--ease-out);
+    }
+    .editor.panels-open .drawer-scrim { opacity: 1; pointer-events: auto; }
+    .drawer-toggle {
+      display: inline-flex; align-items: center; gap: var(--s2);
+      position: fixed; top: var(--s2); left: var(--s2);
+      /* above the drawer, not level with it: equal z-index let the later
+         element win, so the open drawer swallowed its own close button */
+      z-index: calc(var(--z-panel) + 1);
+      min-height: 44px; min-width: 44px; box-shadow: var(--sh-1);
+    }
+    .toolbar { padding-left: 84px; }
+    .editor-empty { padding-top: var(--s9); }
+
+    /* The hotspot panel becomes a bottom sheet. A 300px card pinned top-right
+       is both out of thumb reach and directly over the hotspot being edited. */
+    .hs-panel {
+      top: auto; right: 0; bottom: 0; left: 0; width: auto;
+      max-height: 62dvh; overflow-y: auto;
+      border-radius: var(--r-lg) var(--r-lg) 0 0;
+    }
+
+    /* --- the 44px finger floor --- */
+    .toolbar .btn { min-height: 44px; min-width: 44px; }
+    .icon-btn { min-width: 44px; min-height: 44px; display: inline-grid; place-items: center; padding: 0; }
+    .start-btn { min-height: 32px; padding: 6px 10px; font-size: var(--t-sm); }
+    /* six controls plus a thumbnail cannot share one 340px line at 44px each,
+       so the name takes its own row and the controls sit under it */
+    .scene-row { flex-wrap: wrap; row-gap: var(--s1); padding: var(--s2); }
+    .scene-pick { flex-basis: 100%; min-height: 44px; }
+    .shape-btn { width: 48px; height: 48px; }
+    .field input[type="checkbox"], .bb-return input { width: 24px; height: 24px; }
+    /* .field is flex + align-items:center, so min-height on the ROW leaves the
+       label its 22px line box floating in dead space. The label itself has to
+       become the target the for= binding already promised. */
+    .field label { display: flex; align-items: center; min-height: 44px; flex: 1; }
+    .range-row input[type="range"] { height: 44px; }
+    .bb-chip { min-height: 44px; }
+    .drop-zone { padding: var(--s6) var(--s3); }
+    /* the panel the breakpoint exists to create was never covered */
+    .side .btn, .share-row .btn, .side a.btn { min-height: 44px; }
+    .insp > summary, .plan > summary, .sgroup > summary, .preflight > summary { min-height: 44px; }
+    .plan-box { --plan-dot: 20px; }
+    .start-btn { min-height: 44px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .side, .drawer-scrim { transition: none; }
+  }
+
+  /* ---------- the printed photo log ----------
+     Browser print-to-PDF is the whole delivery mechanism; there is no PDF
+     library here and there should not be one. The log is built on demand and
+     removed again, so it can never disagree with the document it came from. */
+  .print-log { display: none; }
+  @media print {
+    /* :has() scopes this to a page that actually HAS a log. Unscoped, it hid
+       #app on every screen, so an ordinary Ctrl+P printed a blank sheet. */
+    body:has(.print-log) > *:not(.print-log) { display: none !important; }
+    .print-log { display: block; }
+    /* forced to paper regardless of the reader's theme: a dark-mode PDF of an
+       inspection log is a ream of toner and an unreadable filing copy */
+    :root { color-scheme: light; }
+    .print-log, .print-log * { color: #000; background: transparent; }
+    .pl-head { border-bottom: 1.5pt solid #000; padding-bottom: 8pt; margin-bottom: 14pt; }
+    .pl-head h1 { font-size: 16pt; margin: 0 0 6pt; }
+    .pl-head dl { display: flex; flex-wrap: wrap; gap: 4pt 18pt; margin: 0 0 6pt; font-size: 9pt; }
+    .pl-head dt { font-weight: 600; display: inline; margin-right: 4pt; }
+    .pl-head dd { display: inline; margin: 0; }
+    .pl-sub { font-size: 8pt; margin: 0; }
+    .pl-row {
+      display: grid; grid-template-columns: 52mm 1fr; gap: 8pt;
+      break-inside: avoid; page-break-inside: avoid;
+      padding: 8pt 0; border-bottom: 0.5pt solid #999;
+    }
+    .pl-row img { width: 100%; height: auto; max-height: 40mm; object-fit: cover; }
+    .pl-body h2 { font-size: 11pt; margin: 0 0 3pt; }
+    .pl-code {
+      font-family: var(--f-mono); border: 1pt solid #000;
+      border-radius: 2pt; padding: 0 3pt; margin-right: 4pt;
+    }
+    .pl-measure { font-size: 10pt; font-weight: 600; margin: 0 0 3pt; }
+    .pl-measure.pl-none { font-weight: 400; font-style: italic; }
+    .pl-where { font-size: 9pt; margin: 0 0 3pt; }
+    .pl-note { font-size: 9pt; margin: 0; white-space: pre-wrap; }
+    @page { margin: 14mm; }
+  }
+
+  /* PSV overrides to match the house style */
+  .psv-navbar { background: var(--scrim); backdrop-filter: blur(8px); }
+  .psv-panel { background: var(--scrim-strong); color: var(--ink); }
+  /* The scrim is 86% over an ARBITRARY photograph, so on a bright sky the
+     effective background lightens and every contrast ratio underneath drops.
+     The blur is not decoration here — it is what makes the ratios below hold
+     whatever the hotspot happens to be standing in front of. */
+  .psv-panel { backdrop-filter: blur(14px); }
+  .psv-panel-content { padding: var(--s5); }
+
+  /* ---------- what a hotspot says when you open it ----------
+
+     Three groups, in the order an inspector reads them: the evidence, what it
+     IS, and where it sits. Hierarchy is carried by weight, size and SPACE
+     rather than by rules or boxes — a panel this small does not need dividers
+     to be legible, and a card inside a panel would be a card inside a card.
+
+     Every colour here is a token, not an opacity. `opacity: .7` on the ink was
+     the old approach and it is the classic way muted text quietly fails its
+     contrast ratio; --ink-2 is 5.4:1 against this panel even over a white sky,
+     which the opacity version was not. */
+  .hs { display: flex; flex-direction: column; }
+  .hs-shot {
+    display: block; margin: 0 auto var(--s4); border-radius: var(--r-sm);
+    max-width: 100%; max-height: 44vh; width: auto;
+    /* contain rather than cover: this is evidence, and cropping a defect photo
+       to fit a box can crop the defect */
+    background: var(--surface-raised);
+  }
+  .hs-title {
+    margin: 0; font: 600 var(--t-lg)/1.3 var(--f-ui); color: var(--ink);
+    text-wrap: balance;
+  }
+  .hs-code {
+    font-family: var(--f-mono); font-variant-numeric: tabular-nums;
+    font-weight: 600; margin-right: var(--s2);
+  }
+  /* the measurement is the number that gets written into the register, so it
+     sits directly under the identity with almost no gap — one unit, read in
+     one movement — and everything else is pushed away from it */
+  .hs-measure {
+    margin: var(--s1) 0 0; font: 500 var(--t-md)/1.4 var(--f-ui); color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .hs-note {
+    margin: var(--s4) 0 0; font: 400 var(--t-md)/1.55 var(--f-ui); color: var(--ink);
+    white-space: pre-wrap; overflow-wrap: anywhere; max-width: 68ch; text-wrap: pretty;
+  }
+  .hs-where {
+    margin: var(--s5) 0 0; font: 400 var(--t-sm)/1.5 var(--f-ui); color: var(--ink-2);
+    display: flex; flex-wrap: wrap; gap: 0 var(--s2);
+  }
+  .hs-where li { list-style: none; }
+  .hs-where li + li::before { content: '·'; margin-right: var(--s2); color: var(--ink-3); }
+  .hs-audio { margin-top: var(--s4); width: 100%; }
+  .hs-where, .hs-title { padding: 0; }
+
+  /* the preview's own chrome, and nothing else: everything above this comment
+     is tour/index.html's stylesheet, lifted whole */
+  body { margin: 0; background: var(--bg); color: var(--ink); }
+  .pv-stage { position: relative; height: 100vh; }
+  .pv-lede { margin: 0; font-size: var(--t-sm); color: var(--ink-2); max-width: 46ch; }
+  .map-head { flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div class="pv-stage" id="stage">
+  <div class="map-view" role="region" aria-label="Plan view preview">
+    <header class="map-head">
+      <h2>Plan view &mdash; 20 photos</h2>
+      <p class="pv-lede">A two-span skew bridge, walked out along one kerb and
+        back along the other. Drag any arrow to turn it.</p>
+      <ul class="map-legend">
+        <li><span class="lg" aria-hidden="true"></span>GPS fix</li>
+        <li><span class="lg lg-guess" aria-hidden="true"></span>guessed &mdash; drag it home</li>
+        <li><span class="lg lg-manual" aria-hidden="true"></span>placed by hand</li>
+        <li><span class="lg lg-on" aria-hidden="true"></span>the photo you are editing</li>
+        <li><span class="lg lg-stray" aria-hidden="true"></span>not in the walk yet</li>
+        <li><span class="lg lg-aim" aria-hidden="true"></span>which way it looks &mdash; drag to turn</li>
+      </ul>
+      <label class="map-opt">Labels
+        <select id="labels" aria-label="What each photo is labelled with">
+          <option value="name">Name</option>
+          <option value="stop">Photo stop</option>
+          <option value="station">Station</option>
+          <option value="none">None</option>
+        </select>
+      </label>
+      <label class="map-opt" title="Dragging a photo onto another will not link them">
+        <input type="checkbox" id="moveonly"> Move only
+      </label>
+      <label class="map-zoom" title="Pinch on a trackpad, or Ctrl+scroll, to zoom about the pointer">Zoom
+        <input type="range" min="1" max="4" step="0.25" value="1" id="zoom" aria-label="Zoom the map">
+      </label>
+    </header>
+    <div class="map-scroll"><div class="map-sheet">
+      <p class="scene-note plan-how" id="plan-how"></p>
+      <div class="plan-box" id="plan-box"></div>
+      <p class="scene-note" id="plan-note"></p>
+    </div></div>
+  </div>
+</div>
+<script type="module">
+
+
+const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
+
+/* ---------- panorama geometry ----------
+
+   A scene with no `pano` block is a full 360x180 equirect, the Insta360 export
+   this app started with. Everything else — a phone sweep panorama, a partial
+   photo sphere, an ordinary snapshot — covers only a slice of the sphere, and
+   `pano` records which slice:
+
+     hFov   how many degrees wide the photo is (30..360)
+     pitch  elevation of the photo's centre, 0 = horizon
+
+   The vertical field of view is not stored because it is not free: an
+   equirectangular projection has the same degrees-per-pixel on both axes, so
+   vFov = hFov / (width / height). One number, not two, and they can never
+   disagree.
+
+   PSV wants this expressed as a crop out of a virtual full-sphere image, so
+   panoDataFor scales the real pixel size up to what the whole sphere would
+   have measured and centres the crop inside it. */
+
+const isPartial = scene => scene?.pano?.hFov > 0 && scene.pano.hFov < 359.5;
+
+const vFovOf = (hFov, width, height) => (width ? hFov * height / width : 0);
+
+/* Always a function, never undefined: PSV keeps the last function-valued
+   panoData on its config and reuses it whenever a later setPanorama passes
+   none, so a full-sphere scene loaded after a partial one would silently
+   inherit the partial one's crop. Handing it a fresh closure every time is
+   what stops that. Values are snapshotted here rather than read through the
+   scene object, which undo replaces wholesale. */
+/* Every scene reports a pose of zero, deliberately. A photo carrying
+   GPano:PoseHeadingDegrees would otherwise have its whole sphere silently
+   spun round by that many degrees (dataHelper.cleanPanoramaPose -> renderer
+   .setPanoramaPose), which moves where yaw 0 points. That would leave two
+   different meanings of yaw in one tour — image-centre for ordinary photos,
+   true north for photo spheres — and the auto-linker would mis-aim every
+   arrow on exactly the files with the best metadata. One convention instead:
+   yaw 0 is always the centre of the photo, and where that centre points lives
+   in scene.geo.heading where the linker can see it. */
+const NO_POSE = { poseHeading: 0, posePitch: 0, poseRoll: 0 };
+
+function panoDataFor(scene) {
+  const p = isPartial(scene) ? { hFov: scene.pano.hFov, pitch: scene.pano.pitch || 0 } : null;
+  return img => {
+    /* the crop still comes from XMP when we have not overridden it */
+    if (!p) return { ...NO_POSE };
+    const { hFov, pitch } = p;
+    const fullWidth = Math.round(img.width * 360 / hFov);
+    const fullHeight = Math.round(fullWidth / 2);
+    /* pitch is the elevation of the strip's centre: 0 puts the horizon halfway
+       down the image, +20 means the photo was aimed 20 degrees up */
+    const croppedY = Math.round(fullHeight * (90 - pitch) / 180 - img.height / 2);
+    return {
+      fullWidth,
+      fullHeight,
+      croppedWidth: img.width,
+      croppedHeight: img.height,
+      croppedX: Math.round((fullWidth - img.width) / 2),
+      croppedY: clamp(croppedY, 0, Math.max(0, fullHeight - img.height)),
+      ...NO_POSE,
+    };
+  };
+}
+
+/* ---------- reading what the camera wrote ----------
+
+   Two things are worth pulling out of an uploaded photo, and both live in the
+   first few dozen KB: the GPano XMP block (which states the covered slice
+   exactly, so we never have to guess) and the EXIF GPS fix (which lets the
+   auto-linker aim hotspots at where the next scene actually is).
+
+   ponytail: hand-rolled instead of vendoring an EXIF library — this reads six
+   XMP numbers and four EXIF tags and nothing else. Reach for a real parser
+   only if we ever need lens data, timestamps, or maker notes. */
+
+const META_SCAN_BYTES = 256 * 1024;
+
+const xmpNumber = (text, tag) => {
+  const m = text.match(new RegExp(`GPano:${tag}(?:>|=")\\s*(-?[\\d.]+)`));
+  return m ? parseFloat(m[1]) : null;
+};
+
+/* GPano states the crop in pixels of the notional full sphere, which is
+   exactly what we need — no guessing, no slider. */
+function gpanoCoverage(text) {
+  const fullW = xmpNumber(text, 'FullPanoWidthPixels');
+  const fullH = xmpNumber(text, 'FullPanoHeightPixels');
+  const cropW = xmpNumber(text, 'CroppedAreaImageWidthPixels');
+  const cropH = xmpNumber(text, 'CroppedAreaImageHeightPixels');
+  const cropY = xmpNumber(text, 'CroppedAreaTopPixels');
+  if (!(fullW > 0 && fullH > 0 && cropW > 0 && cropH > 0)) return null;
+  const hFov = 360 * cropW / fullW;
+  const centreFromTop = (cropY ?? (fullH - cropH) / 2) + cropH / 2;
+  /* PoseHeadingDegrees is defined exactly as EXIF GPSImgDirection is — the
+     compass heading of the centre of the image — so it stands in when the
+     EXIF tag is missing, which it often is on a photo sphere. */
+  const heading = xmpNumber(text, 'PoseHeadingDegrees');
+  return {
+    hFov,
+    pitch: 90 - 180 * centreFromTop / fullH,
+    ...(Number.isFinite(heading) ? { heading: ((heading % 360) + 360) % 360 } : {}),
+  };
+}
+
+/* The three containers reached the editor by different routes and each hides
+   the same TIFF block somewhere else. Each walk returns the offset of that
+   block, or null. */
+
+const EXIF_MAGIC = 0x45786966; /* "Exif", followed by two zero bytes */
+
+const fourCC = (view, at) =>
+  String.fromCharCode(view.getUint8(at), view.getUint8(at + 1), view.getUint8(at + 2), view.getUint8(at + 3));
+
+/* JPEG: a chain of APP segments, big-endian lengths that include themselves. */
+function jpegTiff(view) {
+  let off = 2;
+  while (off + 4 <= view.byteLength) {
+    if (view.getUint8(off) !== 0xFF) return null;
+    const marker = view.getUint8(off + 1);
+    if (marker === 0xDA || marker === 0xD9) return null; /* scan data starts; no EXIF */
+    const size = view.getUint16(off + 2);
+    if (size < 2) return null;
+    if (marker === 0xE1 && off + 10 <= view.byteLength && view.getUint32(off + 4) === EXIF_MAGIC) {
+      return off + 10; /* skip "Exif\0\0" */
+    }
+    off += 2 + size;
+  }
+  return null;
+}
+
+/* PNG: length-prefixed chunks; EXIF rides in `eXIf` as a bare TIFF block. */
+function pngTiff(view) {
+  let off = 8; /* past the signature */
+  while (off + 12 <= view.byteLength) {
+    const size = view.getUint32(off);
+    if (fourCC(view, off + 4) === 'eXIf') return off + 8;
+    if (fourCC(view, off + 4) === 'IDAT') return null; /* pixels start; nothing left to find */
+    off += 12 + size; /* length + type + data + crc */
+  }
+  return null;
+}
+
+/* WebP: RIFF chunks, little-endian sizes, padded to even. Some writers keep
+   the JPEG-style "Exif\0\0" prefix inside the chunk and some do not. */
+function webpTiff(view) {
+  let off = 12; /* past "RIFF" + size + "WEBP" */
+  while (off + 8 <= view.byteLength) {
+    const size = view.getUint32(off + 4, true);
+    if (fourCC(view, off) === 'EXIF') {
+      const start = off + 8;
+      return start + 6 <= view.byteLength && view.getUint32(start) === EXIF_MAGIC ? start + 6 : start;
+    }
+    off += 8 + size + (size % 2); /* odd payloads carry a pad byte */
+  }
+  return null;
+}
+
+function findExifTiff(view) {
+  if (view.byteLength < 16) return null;
+  if (view.getUint16(0) === 0xFFD8) return jpegTiff(view);
+  if (view.getUint32(0) === 0x89504E47 && view.getUint32(4) === 0x0D0A1A0A) return pngTiff(view);
+  if (fourCC(view, 0) === 'RIFF' && fourCC(view, 8) === 'WEBP') return webpTiff(view);
+  return null;
+}
+
+/* Opens the TIFF block an EXIF segment carries, or null if there is not one.
+   Every offset in a TIFF IFD is relative to `base`, and a truncated read would
+   send us anywhere, so every dereference is bounds-checked. Shared by the GPS
+   and capture-time readers rather than written twice. */
+function tiffCursor(buffer) {
+  const view = new DataView(buffer);
+  const base = findExifTiff(view);
+  if (base === null || base + 8 > view.byteLength) return null;
+  const le = view.getUint16(base) === 0x4949;
+  const u16 = o => view.getUint16(o, le);
+  const u32 = o => view.getUint32(o, le);
+  if (u16(base + 2) !== 42) return null;
+  const entriesOf = ifd => {
+    if (ifd + 2 > view.byteLength) return [];
+    const n = u16(ifd);
+    const out = [];
+    for (let i = 0; i < n && ifd + 2 + i * 12 + 12 <= view.byteLength; i++) out.push(ifd + 2 + i * 12);
+    return out;
+  };
+  return { view, base, u16, u32, entriesOf, ifd0: base + u32(base + 4) };
+}
+
+/* When the shutter fired. A bridge walk is a sequence — deck loop, then
+   elevations, then the underside — so capture order IS the walk, and it is the
+   order the scenes want to be in. A folder drop arrives in whatever order the
+   OS felt like, which is only sometimes the same thing.
+   DateTimeOriginal lives in the Exif sub-IFD; DateTime in IFD0 is the fallback
+   for a photo that has been through an editor. Returns a sortable
+   "YYYY-MM-DDTHH:MM:SS", or null — EXIF carries no timezone, so this is a local
+   wall-clock reading and is never treated as an instant. */
+function readShotTime(buffer) {
+  const t = tiffCursor(buffer);
+  if (!t) return null;
+  const ascii = (at, len) => {
+    if (at + len > t.view.byteLength) return '';
+    let s = '';
+    for (let i = 0; i < len; i++) {
+      const c = t.view.getUint8(at + i);
+      if (!c) break;
+      s += String.fromCharCode(c);
+    }
+    return s;
+  };
+  const readTag = (ifd, tag) => {
+    for (const e of t.entriesOf(ifd)) {
+      if (t.u16(e) !== tag) continue;
+      const count = t.u32(e + 4);
+      const at = count > 4 ? t.base + t.u32(e + 8) : e + 8;
+      return ascii(at, Math.min(count, 32));
+    }
+    return '';
+  };
+  let exifIfd = null;
+  for (const e of t.entriesOf(t.ifd0)) {
+    if (t.u16(e) === 0x8769) { exifIfd = t.base + t.u32(e + 8); break; }
+  }
+  const raw = (exifIfd !== null && readTag(exifIfd, 0x9003)) || readTag(t.ifd0, 0x0132);
+  const m = /^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/.exec(raw || '');
+  return m ? `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}` : null;
+}
+
+function readGps(buffer) {
+  const t = tiffCursor(buffer);
+  if (!t) return null;
+  const { view, base, u16, u32, entriesOf } = t;
+  let gpsIfd = null;
+  for (const e of entriesOf(base + u32(base + 4))) {
+    if (u16(e) === 0x8825) { gpsIfd = base + u32(e + 8); break; }
+  }
+  if (gpsIfd === null) return null;
+
+  const rational = o => (o + 8 <= view.byteLength ? u32(o) / (u32(o + 4) || 1) : NaN);
+  const dms = o => rational(o) + rational(o + 8) / 60 + rational(o + 16) / 3600;
+  const ascii = (o, len) => {
+    let s = '';
+    for (let i = 0; i < len && o + i < view.byteLength; i++) {
+      const c = view.getUint8(o + i);
+      if (!c) break;
+      s += String.fromCharCode(c);
+    }
+    return s;
+  };
+  const out = {};
+  for (const e of entriesOf(gpsIfd)) {
+    const tag = u16(e);
+    const at = base + u32(e + 8); /* rationals never fit the 4-byte inline slot */
+    if (tag === 1 || tag === 3) out[tag === 1 ? 'latRef' : 'lonRef'] = String.fromCharCode(view.getUint8(e + 8));
+    else if (tag === 2) out.lat = dms(at);
+    else if (tag === 4) out.lon = dms(at);
+    else if (tag === 17) out.heading = rational(at);
+    /* 'T' true / 'M' magnetic. Worth knowing on a steel structure: a magnetic
+       reading taken beside a plate girder can be tens of degrees out, which is
+       exactly the case the sun below is able to check. */
+    else if (tag === 16) out.headingRef = String.fromCharCode(view.getUint8(e + 8));
+    else if (tag === 7) out.hms = [rational(at), rational(at + 8), rational(at + 16)];
+    else if (tag === 29) out.utcDate = ascii(at, 11);
+  }
+  if (!Number.isFinite(out.lat) || !Number.isFinite(out.lon)) return null;
+  const geo = {
+    lat: +((out.latRef === 'S' ? -out.lat : out.lat).toFixed(7)),
+    lon: +((out.lonRef === 'W' ? -out.lon : out.lon).toFixed(7)),
+  };
+  if (Number.isFinite(out.heading)) {
+    geo.heading = +(((out.heading % 360) + 360) % 360).toFixed(2);
+    geo.headingRef = out.headingRef === 'M' ? 'M' : 'T';
+  }
+  /* GPSDateStamp and GPSTimeStamp are UTC by definition — the one absolute
+     instant a photo carries. DateTimeOriginal is a local wall-clock reading
+     with no zone attached, which cannot be turned into a sun angle without
+     guessing the offset, and a guessed hour is fifteen degrees of azimuth. */
+  const d = /^(\d{4}):(\d{2}):(\d{2})/.exec(out.utcDate || '');
+  if (d && out.hms?.every(Number.isFinite)) {
+    const ms = Date.UTC(+d[1], +d[2] - 1, +d[3], out.hms[0], out.hms[1], out.hms[2]);
+    if (Number.isFinite(ms)) geo.utc = ms;
+  }
+  return geo;
+}
+
+/* ---------- the sun as a compass ----------
+
+   A bridge inspector's compass is the one instrument the structure itself
+   breaks: stand beside a steel girder and a magnetic heading can be tens of
+   degrees out, silently. The sun cannot be deflected by the bridge.
+
+   Three things a photo already carries — where it was taken (GPS), when the
+   shutter fired (GPSDateStamp/GPSTimeStamp, which unlike DateTimeOriginal is
+   genuinely UTC), and where the sun sits in the frame (guessNavigableYaws already
+   finds it, to keep glare from being mistaken for a doorway) — pin the
+   photo's true heading with no compass involved at all.
+
+   NOAA Solar Calculator formulation, i.e. the low-precision solar series from
+   Meeus, Astronomical Algorithms 2nd ed. ch. 25, with the ch. 22 approximate
+   nutation terms. Checked against Meeus Example 25.a to the last published
+   digit, and against an independent IAU SOFA/ERFA chain over 200,000 random
+   (time, place) samples spanning 2000-2100: azimuth error median 0.002°,
+   p99 0.008°, and better than 0.05° for any sun lower than 83° altitude. That
+   is four hundred times finer than the ±2-3° this can actually read the sun's
+   position to off a 256-pixel-wide thumbnail, so the formula is nowhere near
+   the limiting error and there is no case for a longer one (SPA).
+
+   Returns azimuth in degrees clockwise from TRUE north, altitude in degrees
+   above the horizon. Geometric: no refraction, no diurnal parallax, both far
+   below the reading error above. */
+function sunPosition(dateUTC, latDeg, lonDeg) {
+  const R = Math.PI / 180, sin = Math.sin, cos = Math.cos;
+  const jd = +dateUTC / 86400000 + 2440587.5, T = (jd - 2451545) / 36525;
+  const L = 280.46646 + T * (36000.76983 + T * 0.0003032);           /* mean longitude */
+  const M = (357.52911 + T * (35999.05029 - T * 0.0001537)) * R;     /* mean anomaly */
+  const C = (1.914602 - T * (0.004817 + T * 0.000014)) * sin(M)      /* equation of centre */
+          + (0.019993 - T * 0.000101) * sin(2 * M) + 0.000289 * sin(3 * M);
+  const om = (125.04 - 1934.136 * T) * R;                            /* lunar node */
+  const dpsi = -0.00478 * sin(om);                                   /* nutation in longitude */
+  const lam = (L + C - 0.00569 + dpsi) * R;                          /* apparent longitude */
+  const eps = (23.439291 - T * (0.013004 + T * (0.00000016 - T * 0.000000504))
+              + 0.00256 * cos(om)) * R;                              /* true obliquity */
+  const dec = Math.asin(sin(eps) * sin(lam));
+  const ra = Math.atan2(cos(eps) * sin(lam), cos(lam));
+  const gmst = 280.46061837 + 360.98564736629 * (jd - 2451545)
+             + T * T * (0.000387933 - T / 38710000);
+  const H = (gmst + dpsi * cos(eps) + lonDeg) * R - ra;              /* apparent hour angle */
+  const phi = latDeg * R;
+  return {
+    azimuth: (Math.atan2(-cos(dec) * sin(H), cos(phi) * sin(dec) - sin(phi) * cos(dec) * cos(H)) / R + 360) % 360,
+    altitude: Math.asin(sin(phi) * sin(dec) + cos(phi) * cos(dec) * cos(H)) / R,
+  };
+}
+
+/* Below this the sun's glare smears across too many columns to centre, and
+   refraction starts to matter; above it the azimuth of a near-overhead sun is
+   ill-conditioned in the photo as well as in the formula. */
+const SUN_MIN_ALT = 7;
+const SUN_MAX_ALT = 80;
+/* The strongest guard against reading a floodlight, a window reflection or the
+   sun's glint off water as the sun itself: the formula says how high the sun
+   must be, and the photo says how high the bright thing is. If they disagree,
+   the bright thing is not the sun and no heading is claimed. A 256px-wide
+   thumbnail resolves ~1.4° per column, the glare disc is several columns
+   across, and a hand-held camera is rarely dead level — 12° is loose enough to
+   survive all three and still reject a lamp fifty degrees out of place. */
+const SUN_ALT_TOLERANCE = 12;
+/* How far a recorded heading and the sun's answer have to differ before the
+   scene panel raises it. Below this the two agree within their own error and
+   saying so would be noise; above it, one of them is wrong by more than a
+   bridge is wide. */
+const HEADING_DISPUTE = 15;
+
+/* The photo's true heading — the compass bearing of the centre of the frame,
+   defined exactly as EXIF GPSImgDirection is, so it drops into geo.heading
+   beside a recorded one. Null whenever any part of the chain is missing or
+   fails its check; this never guesses. */
+function solarHeading(sun, geo) {
+  if (!sun || !Number.isFinite(geo?.lat) || !Number.isFinite(geo?.lon) || !Number.isFinite(geo?.utc)) return null;
+  const { azimuth, altitude } = sunPosition(geo.utc, geo.lat, geo.lon);
+  if (altitude < SUN_MIN_ALT || altitude > SUN_MAX_ALT) return null;
+  if (Math.abs(altitude - sun.alt) > SUN_ALT_TOLERANCE) return null;
+  /* the sun sits at image-yaw sun.yaw, and image-yaw is measured from the
+     centre of the frame, so centre = sun's true azimuth minus that offset */
+  return +(((azimuth - sun.yaw) % 360 + 360) % 360).toFixed(2);
+}
+
+/* Initial bearing from a to b, degrees clockwise from true north. */
+function bearing(a, b) {
+  const rad = Math.PI / 180;
+  const dLon = (b.lon - a.lon) * rad;
+  const lat1 = a.lat * rad;
+  const lat2 = b.lat * rad;
+  const y = Math.sin(dLon) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+  return ((Math.atan2(y, x) / rad) + 360) % 360;
+}
+
+/* Equirectangular approximation — metres. Fine at tour scale (tens of metres). */
+function metresBetween(a, b) {
+  const rad = Math.PI / 180;
+  const x = (b.lon - a.lon) * rad * Math.cos((a.lat + b.lat) / 2 * rad);
+  const y = (b.lat - a.lat) * rad;
+  return Math.hypot(x, y) * 6371000;
+}
+
+const wrap180 = deg => ((((deg + 180) % 360) + 360) % 360) - 180;
+
+/* ---------- guessing where you can walk ----------
+
+   Placing an arrow at the middle of the photo is a guess that knows nothing
+   about the photo. This knows a little.
+
+   The signal is not darkness. A doorway into an unlit room is darker than the
+   wall around it, but a doorway onto a sunlit deck is brighter — so scoring
+   raw brightness only works indoors and inverts outdoors. What both cases
+   share is that an opening does not look like the wall either side of it. So
+   each column is scored on how far it departs from the local average across
+   its neighbours, which catches a dark gap in a bright wall and a bright gap
+   in a dark one with the same arithmetic.
+
+   The sun, and any window or lamp bright enough to bloom, is excluded first:
+   it is the one bright thing that is reliably not somewhere you can walk.
+
+   ponytail: brightness contrast on a 256x128 thumbnail, a few hundred
+   microseconds and no dependencies. The real answer is a per-column
+   floor-boundary regression (HorizonNet and its descendants), which needs a
+   neural network — worth revisiting only if this proves too noisy in the
+   field. Every angle it returns is a draggable suggestion, never a decision. */
+
+const NAV_MIN_SEPARATION = 45;  /* PSV dims arrows closer than this anyway */
+const NAV_MIN_SCORE = 18;       /* below this the scene is too flat to read */
+/* Comparing a column against its neighbourhood leaves a weak echo either side
+   of a real opening, because the neighbourhood average is dragged toward the
+   opening while the column itself is not. Those echoes are always far weaker
+   than what caused them, so a suggestion has to hold its own against the
+   strongest thing in the photo — otherwise one doorway sprouts three arrows. */
+const NAV_MIN_RELATIVE = 0.45;
+const SUN_CONTRAST = 40;
+
+/* Fluorescent workwear is the most saturated thing on a bridge and the least
+   like anything the structure is made of: concrete, steel, asphalt, water and
+   sky are all either dark or desaturated. These two thresholds are where
+   "bright AND saturated at once" starts, and they are the knobs to turn when a
+   site reads wrong — deep shade under a deck, sodium lighting at night, and
+   flat overcast all shift them. Rust, dry grass, traffic cones and yellow deck
+   striping DO leak through, which is why nothing downstream acts on this
+   without being asked. */
+const HIVIS_MIN_VALUE = 165;
+const HIVIS_MIN_SAT = 0.45;
+/* A vest is a few columns wide. Rust on a girder, or a whole field of dry
+   grass, spans the frame — so the test is not "is there orange" but "is the
+   orange in one place", measured against the median column. */
+const HIVIS_MIN_PEAK_RATIO = 6;
+
+/* Below this elevation a person is not standing at anything — they are holding
+   the camera. Somebody 1.5m away has their chest around 36 degrees down and
+   somebody five metres away barely below the horizon, while whoever is under
+   the stick is at 70 or 80. Their bearing is close to meaningless (directly
+   underfoot, one point of ground occupies every column at once) and aiming the
+   opening view at them aims it nowhere. Which way they were LOOKING is worth
+   having, though, so this same line divides the two readings below. */
+const UNDERFOOT_ALT = -55;
+
+/* Whoever holds the stick appears at the base of the frame as the top of a
+   head. A camera directly above sees a point on that crown at the azimuth of
+   its own horizontal offset, so the only skin up there — forehead, nose,
+   cheeks — sits at the bearing the face is turned to, and averaging it reads
+   as a compass. Circular mean, for the same reason the sun uses one: a face
+   across the 0/360 seam would otherwise come out 180 degrees wrong.
+
+   ponytail: a warm-and-not-grey colour rule, not a face detector. Bare timber,
+   rust, dry soil and brick all pass it. Three things keep it honest — it looks
+   only at the steepest sliver of the frame, it refuses unless what it finds
+   lies in ONE direction (a timber deck is skin-coloured all the way round),
+   and it refuses if that direction is most of the sliver (a plank floor is not
+   a face). Those refusals are the knobs to turn when a site reads wrong; a
+   real landmark model is the upgrade path if guessing stops being enough. */
+const SKIN_MIN_RED = 95;
+const SKIN_MIN_WARMTH = 15;   /* red over green, which is what grey never is */
+const FACE_MIN_SHARE = 0.015;
+const FACE_MAX_SHARE = 0.45;
+const FACE_MIN_FOCUS = 0.5;   /* 1 = every skin pixel in one direction */
+
+/* How far a pixel has to depart from the deck's own colour to count as
+   something standing on it, and how much of a column has to depart before the
+   column counts. Brightness OR saturation, never darkness — a shadow is the
+   false positive these thresholds exist to exclude. */
+const VEHICLE_MIN_LUM = 34;
+const VEHICLE_MIN_SAT = 26;
+const VEHICLE_MIN_SHARE = 0.42;
+/* A plant vehicle a few metres away subtends tens of degrees. Below the floor
+   it is a bollard or a cone; above the ceiling it is the parapet, the sky
+   showing under the deck, or an exposure shift across the whole photo — none
+   of which is a vehicle, and all of which would otherwise be reported as the
+   widest run in the frame. */
+const VEHICLE_MIN_DEG = 12;
+const VEHICLE_MAX_DEG = 110;
+
+/* ---------- one read of the pixels ----------
+
+   Everything later steps want off a photo, taken in a single pass while it is
+   decoded and in hand: the two brightness bands the navigation guess scores,
+   where the sun is, and whether somebody is standing in shot. Kept together
+   because they all want the same degrees-per-pixel mapping, and splitting them
+   meant three functions deriving it separately and one of them getting it
+   wrong on a partial panorama. */
+function panoProfile(image, { hFov = 360, tilt = 0 } = {}) {
+  const W = image.width;
+  const H = image.height;
+  const d = image.data;
+  if (!W || !H) return null;
+  const vFov = hFov * H / W; /* one degrees-per-pixel scale on both axes */
+
+  const lum = (x, y) => {
+    const i = (y * W + x) * 4;
+    return 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+  };
+  const rowAt = deg => clamp(Math.round(H * (0.5 - (deg - tilt) / vFov)), 0, H - 1);
+  const altAt = row => tilt + vFov * (0.5 - (row + 0.5) / H);
+  const yawAt = col => +wrap180((col + 0.5) / W * hFov - hFov / 2).toFixed(2);
+
+  /* a band either side of eye level, where an opening shows as a silhouette,
+     and a second lower band that only corroborates — a puddle should not on
+     its own decide where the tour walks */
+  const columnMeans = (topDeg, botDeg) => {
+    const top = rowAt(topDeg);
+    const bot = Math.max(top + 1, rowAt(botDeg));
+    const out = new Float64Array(W);
+    for (let x = 0; x < W; x++) {
+      let sum = 0;
+      for (let y = top; y < bot; y++) sum += lum(x, y);
+      out[x] = sum / (bot - top);
+    }
+    return out;
+  };
+  /* circular: a panorama has no left or right edge */
+  const smooth = (arr, radius) => {
+    const out = new Float64Array(W);
+    for (let x = 0; x < W; x++) {
+      let sum = 0;
+      for (let k = -radius; k <= radius; k++) sum += arr[(x + k + W) % W];
+      out[x] = sum / (2 * radius + 1);
+    }
+    return out;
+  };
+
+  const wall = smooth(columnMeans(20, -15), 3);
+  const floor = smooth(columnMeans(-20, -50), 3);
+
+  /* A sun is a bright thing that STANDS OUT from the sky around it, not merely
+     the brightest thing present — under a flat overcast the brightest pixel is
+     just sky, and treating it as glare would blank the whole panorama and
+     leave the feature silently doing nothing on a dull day. So this only runs
+     when something is genuinely brighter than the sky it sits in. */
+  const skyTop = rowAt(85);
+  const skyBot = Math.max(skyTop + 1, rowAt(25));
+  const hist = new Uint32Array(256);
+  for (let x = 0; x < W; x++) for (let y = skyTop; y < skyBot; y++) hist[lum(x, y) | 0]++;
+  const total = W * (skyBot - skyTop);
+  const percentile = fraction => {
+    let seen = 0;
+    for (let v = 255; v > 0; v--) {
+      seen += hist[v];
+      if (seen >= total * fraction) return v;
+    }
+    return 0;
+  };
+  const hot = percentile(0.005);
+  let sun = null;
+  if (hot - percentile(0.5) >= SUN_CONTRAST) {
+    /* Circular mean over the blown-out pixels. A plain mean of column numbers
+       would put a glare disc that straddles the seam on the far side of the
+       sphere, which is the one error that would make the solar compass
+       confidently 180° wrong. */
+    let sx = 0, sy = 0, rowSum = 0, n = 0;
+    for (let x = 0; x < W; x++) {
+      for (let y = skyTop; y < skyBot; y++) {
+        if (lum(x, y) < hot) continue;
+        const th = 2 * Math.PI * (x + 0.5) / W;
+        sx += Math.cos(th); sy += Math.sin(th); rowSum += y; n++;
+      }
+    }
+    if (n) {
+      const col = ((Math.atan2(sy, sx) / (2 * Math.PI)) * W % W + W) % W;
+      sun = { col, yaw: yawAt(col), alt: +altAt(rowSum / n).toFixed(2) };
+    }
+  }
+
+  /* ---- anyone in shot ----
+     Whole frame, not a band: an inspector may be on the deck below the camera
+     or on staging above it. */
+  const vest = new Float64Array(W);
+  const vestRow = new Float64Array(W);
+  for (let x = 0; x < W; x++) {
+    let s = 0, rows = 0;
+    for (let y = 0; y < H; y++) {
+      const i = (y * W + x) * 4;
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+      const m = Math.max(r, g);
+      /* g against r keeps deep red and brick out while admitting both the
+         yellow-green and the orange the standards allow */
+      if (m >= HIVIS_MIN_VALUE && m - b >= m * HIVIS_MIN_SAT && g >= r * 0.4) {
+        const w = (m - b) / 255;
+        s += w;
+        rows += w * y; /* how far down they are, which decides whether their bearing means anything */
+      }
+    }
+    vest[x] = s;
+    vestRow[x] = s ? rows / s : 0;
+  }
+  let person = null;
+  {
+    const sorted = [...vest].sort((a, b) => a - b);
+    const median = sorted[W >> 1];
+    let top = 0;
+    for (let x = 1; x < W; x++) if (vest[x] > vest[top]) top = x;
+    /* the +0.5 keeps an all-black median from dividing by zero, and sets the
+       scale at which a peak counts as "one place" rather than "everywhere" */
+    if (vest[top] > 0 && vest[top] / (median + 0.5) >= HIVIS_MIN_PEAK_RATIO) {
+      person = { col: top, yaw: yawAt(top), alt: +altAt(vestRow[top]).toFixed(2) };
+    }
+  }
+
+  /* ---- which way the one under the camera is looking ----
+     See SKIN_MIN_RED above for what this is and what it is not. */
+  let facing = null;
+  {
+    const top = rowAt(UNDERFOOT_ALT);
+    /* a phone strip that never looks further down than the parapet has no
+       underfoot to read, and clamping would otherwise hand back its last row */
+    if (H - top >= 3 && altAt(H - 1) < UNDERFOOT_ALT) {
+      let sx = 0, sy = 0, n = 0;
+      for (let y = top; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const i = (y * W + x) * 4;
+          const r = d[i], g = d[i + 1], b = d[i + 2];
+          if (r < SKIN_MIN_RED || g < 40 || b < 20 || r <= b || r - g < SKIN_MIN_WARMTH
+            || Math.max(r, g, b) - Math.min(r, g, b) <= 15) continue;
+          const th = 2 * Math.PI * (x + 0.5) / W;
+          sx += Math.cos(th); sy += Math.sin(th); n++;
+        }
+      }
+      const share = n / (W * (H - top));
+      const focus = n ? Math.hypot(sx, sy) / n : 0;
+      if (share >= FACE_MIN_SHARE && share <= FACE_MAX_SHARE && focus >= FACE_MIN_FOCUS) {
+        facing = yawAt(((Math.atan2(sy, sx) / (2 * Math.PI)) * W % W + W) % W);
+      }
+    }
+  }
+
+  /* ---- the inspection vehicle ----
+
+     A UBIT, a bucket truck, a snooper: on an inspection it is the biggest
+     man-made thing standing on the deck, and unlike the structure it is in a
+     different place in every photo, which is what makes it useful — two photos
+     that both see it and both know which way they face pin down where it is.
+
+     No model, and no attempt to recognise a truck as such. What is actually
+     detected is "a wide mass on the deck that is not the deck": for each
+     column in the band below the horizon, the share of pixels whose colour
+     departs from the deck's own median, counting only departures that are
+     BRIGHTER or MORE SATURATED. That last clause is what separates a painted
+     vehicle from its own shadow, which is the obvious false positive and is
+     dark rather than bright. The widest run of such columns wins.
+
+     ponytail: this is a coloured-mass finder with a plausible width, not a
+     vehicle classifier. It will also point at a skip, a site cabin, a parked
+     car or a large sign — all of which are, in fairness, also "the big thing
+     on the deck". Everything downstream treats it as a suggestion, and the
+     four numbers below are field-tuning knobs, not constants of nature. */
+  const deckTop = rowAt(-5);
+  const deckBot = Math.max(deckTop + 1, rowAt(-40));
+  const deckRows = deckBot - deckTop;
+  let vehicle = null;
+  if (deckRows >= 3) {
+    const lumOf = i => 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+    const satOf = i => Math.max(d[i], d[i + 1], d[i + 2]) - Math.min(d[i], d[i + 1], d[i + 2]);
+    /* the deck's own colour, as a median so a vehicle filling a third of the
+       band cannot drag the reference toward itself the way a mean would */
+    const lums = [], sats = [];
+    for (let x = 0; x < W; x += 2) {
+      for (let y = deckTop; y < deckBot; y += 2) {
+        const i = (y * W + x) * 4;
+        lums.push(lumOf(i)); sats.push(satOf(i));
+      }
+    }
+    lums.sort((a, b) => a - b); sats.sort((a, b) => a - b);
+    const deckLum = lums[lums.length >> 1], deckSat = sats[sats.length >> 1];
+
+    const share = new Float64Array(W);
+    for (let x = 0; x < W; x++) {
+      let hits = 0;
+      for (let y = deckTop; y < deckBot; y++) {
+        const i = (y * W + x) * 4;
+        if (lumOf(i) - deckLum >= VEHICLE_MIN_LUM || satOf(i) - deckSat >= VEHICLE_MIN_SAT) hits++;
+      }
+      share[x] = hits / deckRows;
+    }
+    /* longest circular run of columns that are mostly not-deck. Scanning twice
+       round lets a vehicle sitting across the 0/360 seam be found as one run
+       rather than as two halves at opposite ends of the panorama. */
+    let best = null, run = 0;
+    for (let k = 0; k < W * 2; k++) {
+      if (share[k % W] >= VEHICLE_MIN_SHARE) {
+        run++;
+        if (run <= W && (!best || run > best.len)) best = { len: run, end: k };
+      } else run = 0;
+    }
+    const degPer = hFov / W;
+    if (best && best.len * degPer >= VEHICLE_MIN_DEG && best.len * degPer <= VEHICLE_MAX_DEG) {
+      const centre = ((best.end - (best.len - 1) / 2) % W + W) % W;
+      vehicle = { yaw: yawAt(centre), width: +(best.len * degPer).toFixed(1) };
+    }
+  }
+
+  return { W, hFov, wall, floor, sun, person, facing, vehicle };
+}
+
+/* Where the photo suggests you can walk. Reads the bands panoProfile built;
+   every angle it returns is a draggable suggestion, never a decision. */
+function guessNavigableYaws(profile, count = 3) {
+  if (!profile) return [];
+  const { W, hFov, wall, floor, sun } = profile;
+  const smooth = (arr, radius) => {
+    const out = new Float64Array(W);
+    for (let x = 0; x < W; x++) {
+      let sum = 0;
+      for (let k = -radius; k <= radius; k++) sum += arr[(x + k + W) % W];
+      out[x] = sum / (2 * radius + 1);
+    }
+    return out;
+  };
+  const wallBase = smooth(wall, Math.max(1, Math.round(W * 0.19)));
+  const floorBase = smooth(floor, Math.max(1, Math.round(W * 0.19)));
+
+  const score = new Float64Array(W);
+  for (let x = 0; x < W; x++) {
+    score[x] = Math.abs(wall[x] - wallBase[x]) + 0.5 * Math.abs(floor[x] - floorBase[x]);
+  }
+
+  /* the sun is the one bright thing that is reliably not somewhere you can
+     walk — knock it out, plus a margin for the glare around it */
+  if (sun) {
+    const bloom = Math.max(1, Math.round(W * 0.035));
+    for (let k = -bloom; k <= bloom; k++) score[(Math.round(sun.col) + k + W) % W] = 0;
+  }
+
+  const gap = Math.round(W * NAV_MIN_SEPARATION / 360);
+  const apart = (a, b) => { const n = Math.abs(a - b) % W; return Math.min(n, W - n); };
+  const floorScore = Math.max(NAV_MIN_SCORE, Math.max(...score) * NAV_MIN_RELATIVE);
+  const picked = [];
+  for (const x of [...score.keys()].sort((a, b) => score[b] - score[a])) {
+    if (score[x] < floorScore || picked.length === count) break;
+    if (!picked.some(p => apart(p, x) < gap)) picked.push(x);
+  }
+  return picked.map(x => +wrap180((x + 0.5) / W * hFov - hFov / 2).toFixed(2));
+}
+
+/* Which way a scene should open, off what the photo turned out to contain.
+   Yaw 0 is the middle of the file, which is wherever the camera happened to be
+   pointing, so almost anything beats it — but only two readings are worth
+   having, in this order:
+
+     person   somebody in hi-vis standing out in the scene. On an inspection
+              they are nearly always at the thing being inspected.
+     facing   nobody out there, but whoever held the camera is underfoot, and
+              the top of their head says which way they were looking. A worse
+              bet than the first, and still a far better one than the middle of
+              the file.
+
+   A hi-vis hit BELOW the underfoot line is the operator, not a second person,
+   and gets no vote on bearing at all — it is the one case where the old guess
+   confidently aimed at nothing. Returns null when the photo suggests neither,
+   because "no idea" has to stay one of the answers. */
+function openingView(profile) {
+  const p = profile?.person;
+  if (p && p.alt > UNDERFOOT_ALT) return { yaw: p.yaw, pitch: 0, from: 'person' };
+  if (Number.isFinite(profile?.facing)) return { yaw: profile.facing, pitch: 0, from: 'facing' };
+  return null;
+}
+
+/* ---------- keeping every hotspot clickable ----------
+
+   Two hotspots close together on screen are one hotspot as far as anybody
+   pressing them is concerned, and the one underneath cannot be reached at all.
+   Automatic arrows now step aside as they are created (see freeYaw), but that
+   cannot help the cases that matter most: two defects genuinely three degrees
+   apart on the same spall, a tour built before that fix existed, or any pair
+   that only collides once you zoom out.
+
+   So marks are separated where they are DRAWN, never where they are stored.
+   The record keeps the exact angle somebody clicked — the register, the CSV
+   and the photo log all read the stored yaw and pitch and none of them can see
+   any of this. Only pixels move.
+
+   Takes boxes at {x, y, w, h} centres, returns one {dx, dy} per box in the
+   same order. Pure, so the geometry can be tested without a viewer.
+
+   ponytail: pairwise relaxation, O(n² · passes). At the dozen-or-two markers
+   ever visible at once that is a few hundred operations a frame, far cheaper
+   than the quadtree that would replace it. */
+
+const DECLUTTER_GAP = 4;        /* px of daylight left between two marks */
+/* Past half its own size a mark would stop covering the point it marks, and a
+   defect pin that no longer sits on the defect is worse than one you have to
+   zoom in to separate. This cap is the honesty of the whole mechanism. */
+const DECLUTTER_LIMIT = 0.5;
+const DECLUTTER_PASSES = 4;
+
+function separateMarks(marks) {
+  const at = marks.map(m => ({ x: m.x, y: m.y }));
+
+  /* Marks landing on the very same pixel are the case this exists for, and
+     pairwise pushing alone handles them badly: each push picks one axis, so a
+     stack of three ends up in a LINE, which is the shape that leaves the middle
+     one least room. Seed them on a ring first and the relaxation refines a fan
+     instead. Up to four equal marks a ring at the cap radius keeps every centre
+     clear of every other; a fifth cannot be fitted inside the cap by any
+     arrangement, and gets a better place rather than a provably clear one. */
+  const groups = new Map();
+  marks.forEach((m, i) => {
+    const key = `${Math.round(m.x)},${Math.round(m.y)}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(i);
+  });
+  const stack = marks.map(() => -1); /* -1 = this mark shares its pixel with nobody */
+  let stackId = 0;
+  for (const idx of groups.values()) {
+    if (idx.length < 2) continue;
+    const id = stackId++;
+    idx.forEach((i, n) => {
+      stack[i] = id;
+      const th = 2 * Math.PI * n / idx.length;
+      const r = Math.max(marks[i].w, marks[i].h) * DECLUTTER_LIMIT;
+      at[i].x += Math.cos(th) * r;
+      at[i].y += Math.sin(th) * r;
+    });
+  }
+
+  for (let pass = 0; pass < DECLUTTER_PASSES; pass++) {
+    let moved = false;
+    for (let i = 0; i < marks.length; i++) {
+      for (let j = i + 1; j < marks.length; j++) {
+        /* Two marks off the same pixel are already as far apart as the cap
+           will ever allow them to be, and pushing them further only spends
+           the budget unevenly — measured, it turned an exact four-way ring
+           into two marks sitting back on each other's centres. They still
+           relax against everything OUTSIDE their own stack. */
+        if (stack[i] !== -1 && stack[i] === stack[j]) continue;
+        const a = at[i], b = at[j];
+        let dx = b.x - a.x, dy = b.y - a.y;
+        const overX = (marks[i].w + marks[j].w) / 2 + DECLUTTER_GAP - Math.abs(dx);
+        const overY = (marks[i].h + marks[j].h) / 2 + DECLUTTER_GAP - Math.abs(dy);
+        if (overX <= 0 || overY <= 0) continue; /* already clear of each other */
+        moved = true;
+        /* Exactly coincident is the common case here, not the rare one — it is
+           what two auto-links on one bearing used to produce — and it offers no
+           direction to push along. Push along the golden angle instead of along
+           an axis: axis-aligned would lay a stack of three out in a LINE, where
+           a radial fan spreads them around the point and leaves each one more
+           room. Each mark gets its own angle, so the fan is deterministic. */
+        if (!dx && !dy) {
+          const th = i * 2.39996;
+          const need = Math.max(overX, overY) / 2;
+          a.x -= Math.cos(th) * need; a.y -= Math.sin(th) * need;
+          b.x += Math.cos(th) * need; b.y += Math.sin(th) * need;
+          continue;
+        }
+        /* separate along the axis needing the least movement — pushing apart
+           sideways when they are stacked vertically travels much further */
+        if (overX < overY) {
+          const s = Math.sign(dx || 1) * overX / 2;
+          a.x -= s; b.x += s;
+        } else {
+          const s = Math.sign(dy || 1) * overY / 2;
+          a.y -= s; b.y += s;
+        }
+      }
+    }
+    if (!moved) break;
+  }
+  return marks.map((m, i) => {
+    let dx = at[i].x - m.x, dy = at[i].y - m.y;
+    const cap = Math.max(m.w, m.h) * DECLUTTER_LIMIT;
+    const d = Math.hypot(dx, dy);
+    if (d > cap) { dx = dx * cap / d; dy = dy * cap / d; }
+    return { dx, dy };
+  });
+}
+
+/* Nudge a direction we already believe in onto the nearest thing the photo
+   suggests. Keeps the topology the GPS or the capture order decided, and only
+   sharpens the angle — so a photo with nothing to say costs nothing. */
+function snapToWay(yaw, ways, tolerance = 90) {
+  if (!ways?.length) return yaw;
+  let best = null;
+  for (const w of ways) {
+    const off = Math.abs(wrap180(w - yaw));
+    if (off <= tolerance && (best === null || off < best.off)) best = { w, off };
+  }
+  return best ? best.w : yaw;
+}
+
+/* ---------- how far the next photo is turned from this one ----------
+
+   Two photos taken a few metres apart see the same things — the deck line, the
+   piers, the parapet, the truck parked on the approach. Slide one column
+   profile round against the other and the offset that lines them up IS the
+   rotation between the two photos. Circular cross-correlation, no library.
+
+   ponytail: naive O(W²), 65k multiply-adds at W=256, measured at 90-265µs. A
+   forty-photo tour's consecutive pairs cost under 10ms — one frame. An FFT
+   would be 200 lines to save that, so no FFT until W passes ~1024.
+
+   The hard part is not the shift, it is knowing when not to believe it. Three
+   things had to be measured rather than assumed:
+
+   - The raw peak lies. Two unrelated bridge photos still correlate at a median
+     0.5, because a smoothed 256-column profile holds only ~36 independent
+     samples and there are 256 lags to find a lucky one in. So what is reported
+     is the peak's MARGIN over the best rival lag outside its own lobe.
+   - A row of identical piers correlates 1.000 at every multiple of the pier
+     spacing, and picks an arbitrary one — measured 180° wrong. The margin
+     catches this exactly: the rival is also 1.000, so the margin is 0.000.
+   - A smooth profile — a photo under a deck soffit, a flat overcast horizon —
+     produces ONE broad lobe. Then the lobe walk swallows every lag, there is
+     no rival left to beat, and a naive reading hands back full confidence.
+     Measured: two unrelated single-bump profiles scored 1.0000 at a 180° error.
+     No threshold fixes this, because the statistic stops being monotone in
+     evidence; raising the bar to 0.70 still let a third of them through while
+     killing the real matches. The fix is a precondition on the INPUT — a
+     profile without enough structure to correlate is refused before its
+     confidence is looked at — which took the false accepts from 21% to 0.3%
+     with no loss of true matches. */
+
+/* Sign changes about the profile's own mean. Six is the fewest that leaves a
+   correlation peak anything to compete against. */
+const MATCH_MIN_CROSSINGS = 6;
+const MATCH_MIN_CONFIDENCE = 0.35;
+/* Both bands must land within this of each other. Set just above the error
+   parallax alone contributes over a couple of metres of walk — widen it for a
+   site where the photos are far apart, narrow it for a tripod survey. */
+const MATCH_AGREE_COLUMNS = 6;
+
+function correlateYaw(a, b) {
+  const W = a?.length | 0;
+  const nothing = { shiftColumns: 0, confidence: 0 };
+  if (!W || b?.length !== W) return nothing;
+
+  /* zero-mean, unit-variance. This does NOT change which lag wins — the DC
+     term is constant across lags and the scale is positive — but it puts the
+     peak in correlation-coefficient units, so one threshold means the same
+     thing on a photo shot two stops brighter. */
+  const norm = src => {
+    let mean = 0;
+    for (let i = 0; i < W; i++) mean += src[i];
+    mean /= W;
+    const out = new Float64Array(W);
+    let ss = 0;
+    for (let i = 0; i < W; i++) { out[i] = src[i] - mean; ss += out[i] * out[i]; }
+    const sd = Math.sqrt(ss / W);
+    if (!(sd > 1e-9)) return null;
+    for (let i = 0; i < W; i++) out[i] /= sd;
+    /* the precondition: too few crossings and this is one broad blob, which
+       correlates beautifully with any other broad blob anywhere */
+    let crossings = 0;
+    for (let i = 0; i < W; i++) if ((out[i] > 0) !== (out[(i + 1) % W] > 0)) crossings++;
+    return crossings >= MATCH_MIN_CROSSINGS ? out : null;
+  };
+  const x = norm(a), y = norm(b);
+  if (!x || !y) return nothing;
+
+  const r = new Float64Array(W);
+  for (let k = 0; k < W; k++) {
+    let s = 0;
+    for (let i = 0; i < W; i++) s += x[i] * y[(i + k) % W];
+    r[k] = s / W;
+  }
+
+  let peak = -2, best = 0;
+  for (let k = 0; k < W; k++) if (r[k] > peak) { peak = r[k]; best = k; }
+
+  /* the peak's own shoulder is as wide as the scene's own features, not a
+     fixed number, so walk down off it until the correlation stops falling */
+  const at = k => r[(k % W + W) % W];
+  let lo = 0, hi = 0;
+  while (lo < W / 2 && at(best - lo - 1) < at(best - lo)) lo++;
+  while (hi < W / 2 && at(best + hi + 1) < at(best + hi)) hi++;
+  let rival = -2, rivals = 0;
+  for (let k = 0; k < W; k++) {
+    const dist = ((k - best) % W + W) % W;
+    if (dist > hi && dist < W - lo) { rivals++; if (r[k] > rival) rival = r[k]; }
+  }
+  /* No rival left, or none of them even positive, both mean the same thing:
+     one broad lobe and nothing to compare it against. That is an absence of
+     evidence, not a strong result — the distinction this used to get backwards. */
+  if (!rivals || rival < 0) return { shiftColumns: best, confidence: 0 };
+
+  /* a feature at column c in `a` sits at column c + shiftColumns in `b` */
+  return { shiftColumns: best, confidence: +Math.max(0, peak - rival).toFixed(4) };
+}
+
+/* Degrees `to` is rotated relative to `from`, or null when the photos do not
+   agree that they are looking at the same place. Both bands, always: one band
+   alone false-accepts a fifth of unrelated pairs at this threshold, and making
+   wall and floor agree cuts that seventeenfold.
+
+   The whole gate is deliberately timid. Measured over 600 synthetic pairs per
+   regime, it answers 14-32% of the time on an ordinary scene and 0-4% on a
+   near-flat one — but across every regime tried, 0% of unrelated pairs were
+   accepted and 0% of accepted answers were wrong by more than 11°. Refusing is
+   free: the caller falls back to the assumption it used before this existed.
+   Answering wrongly is not, so the trade is the right way round.
+
+   Never better than ±5° however confident it sounds — the two photos are
+   metres apart, so near things swing further than far ones and the profile is
+   not a pure rotation. */
+function yawBetween(from, to) {
+  const a = unpackProfile(from?.prof), b = unpackProfile(to?.prof);
+  if (!a || !b || a.W !== b.W) return null;
+  /* profiles built at different coverages are not comparable, and the
+     wrap-around the correlation assumes is wrong for a partial panorama */
+  if ((from.pano?.hFov ?? 360) !== (to.pano?.hFov ?? 360)) return null;
+  const w = correlateYaw(a.wall, b.wall);
+  const f = correlateYaw(a.floor, b.floor);
+  if (w.confidence < MATCH_MIN_CONFIDENCE || f.confidence < MATCH_MIN_CONFIDENCE) return null;
+  const d = Math.abs(w.shiftColumns - f.shiftColumns) % a.W;
+  if (Math.min(d, a.W - d) > MATCH_AGREE_COLUMNS) return null;
+  return {
+    degrees: +wrap180(w.shiftColumns * 360 / a.W).toFixed(2),
+    confidence: Math.min(w.confidence, f.confidence),
+  };
+}
+
+/* The bands are luma means, so a byte each loses nothing the correlation can
+   see. Two 256-column bands ride in a scene as ~690 characters of base64. */
+function packProfile(profile) {
+  if (!profile) return null;
+  const { W, wall, floor } = profile;
+  const bytes = new Uint8Array(W * 2);
+  for (let i = 0; i < W; i++) {
+    bytes[i] = clamp(Math.round(wall[i]), 0, 255);
+    bytes[W + i] = clamp(Math.round(floor[i]), 0, 255);
+  }
+  return btoa(String.fromCharCode(...bytes));
+}
+
+function unpackProfile(packed) {
+  if (typeof packed !== 'string' || !packed) return null;
+  try {
+    const bin = atob(packed);
+    const W = bin.length >> 1;
+    if (!W || W * 2 !== bin.length) return null;
+    const wall = new Float64Array(W), floor = new Float64Array(W);
+    for (let i = 0; i < W; i++) { wall[i] = bin.charCodeAt(i); floor[i] = bin.charCodeAt(W + i); }
+    return { W, wall, floor };
+  } catch { return null; }
+}
+
+/* ---------- the defect register ----------
+
+   None of this vocabulary is invented here. The nine types, the quantised
+   increments and the phrasing all come from the sibling field-sketch tool,
+   android/app/src/main/assets/bridge-sketch.html (DEFECT_LABEL, DEFECT_PAL and
+   its measurement fields). Keeping them byte-identical is the entire point: a
+   structure's 360 record and its sketch register have to be readable side by
+   side, and a tool that said "1/2 inch" where the other said "1/2 in" would
+   quietly become a second, disagreeing source of truth.
+
+   Only Spall takes a depth and only Crack / Map cracking take a width, because
+   that is all the sketch tool defines. Giving Section loss a measurement the
+   other tool does not have would be exactly the drift this is avoiding. */
+const DEFECT_TYPES = [
+  'Spall', 'Crack', 'Map cracking', 'Patch', 'Section loss',
+  'Delamination', 'Efflorescence', 'Exposed reinforcement', 'Pack rust',
+];
+const DEFECT_MEASURE = { Spall: 'depth', Crack: 'width', 'Map cracking': 'width' };
+const DEPTH_STEPS = [[0.25, '1/4 in'], [0.5, '1/2 in'], [1, '1 in'], [2, '2 in'], [3, 'Over 2 in']];
+const WIDTH_STEPS = [[0.01, 'Hairline'], [0.0625, '1/16 in'], [0.125, '1/8 in'], [0.25, '1/4 in'], [0.375, 'Over 1/4 in']];
+
+/* The three sentinels are the sketch tool's: 0.01 is "hairline" rather than a
+   hundredth of an inch, and 0.375 / 3 are open-ended buckets, not measurements.
+   Everything else renders as a real fraction in sixteenths. */
+function fmtIn(v) {
+  if (!(v > 0)) return '';
+  if (v === 0.01) return 'hairline';
+  if (v === 0.375) return 'over 1/4 in';
+  if (v === 3) return 'over 2 in';
+  const sixteenths = Math.round(v * 16);
+  if (sixteenths % 16 === 0) return `${sixteenths / 16} in`;
+  const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+  const rem = sixteenths % 16;
+  const d = gcd(rem, 16);
+  const whole = Math.floor(sixteenths / 16);
+  /* past an inch it is a mixed number — "1 1/2 in", the way the sketch tool
+     writes it and an inspector reads it, never an improper "3/2 in" */
+  return `${whole ? `${whole} ` : ''}${rem / d}/${16 / d} in`;
+}
+
+/* The register's Measure column, and the marker tooltip. */
+function defectMeasure(h) {
+  const kind = DEFECT_MEASURE[h?.defect] || '';
+  const parts = [];
+  if (kind === 'depth' && h.depthIn > 0) parts.push(`${fmtIn(h.depthIn)} deep`);
+  if (kind === 'width' && h.widthIn > 0) parts.push(`${fmtIn(h.widthIn)} wide`);
+  if (h?.rebar) parts.push('reinforcement exposed');
+  return parts.join(', ');
+}
+
+/* A defect of a type that takes a measurement, with none recorded. Advisory,
+   not blocking — a photograph of a spall is still evidence without a depth. */
+function defectNeedsMeasure(h) {
+  const kind = DEFECT_MEASURE[h?.defect] || '';
+  if (!kind) return false;
+  return !(kind === 'depth' ? h.depthIn > 0 : h.widthIn > 0);
+}
+
+/* Codes run D1, D2, D3 across the WHOLE tour, not per scene: the register is
+   one document, and the same spall photographed from two stations must not
+   become two defects. Scanning for the highest rather than counting means
+   deleting D2 never renumbers D3 out from under a note already written. */
+function nextDefectCode(scenes) {
+  let max = 0;
+  for (const s of scenes || []) {
+    for (const h of s.hotspots || []) {
+      const m = /^D(\d+)$/.exec(h.code || '');
+      if (m) max = Math.max(max, +m[1]);
+    }
+  }
+  return `D${max + 1}`;
+}
+
+/* ---------- where the photos were taken from ----------
+
+   This used to draw EXIF GPS and refuse everything else, on the grounds that a
+   row of evenly spaced dots which are not where anything is would be a drawing
+   of the tool's imagination, and that on a structure where "which pier is
+   that" is the question, a confident wrong map is worse than no map.
+
+   That reasoning was right about confidence and wrong about usefulness. A
+   guessed layout you can DRAG is not a claim, it is a starting position — and
+   an inspector who knows the site can fix forty dots faster than they can
+   place them from nothing. So the refusal is now carried by the drawing rather
+   than by the absence of one: a guessed dot is hollow and dashed, a GPS dot is
+   solid, a dot somebody moved by hand is solid and accented, and the note
+   under the plate counts each kind. Nothing here is ever exported as a
+   surveyed coordinate.
+
+   Three tiers, most trusted first:
+     manual  — s.plan {x,y}, because a human said so
+     gps     — EXIF, good to a few metres
+     guess   — spread along the structure's own axis in capture order
+
+   Everything is computed in local east/north METRES from the first located
+   photo, and only normalised into the box at the end. Keeping one metric space
+   is what lets a hand-dragged dot survive a later photo widening the site:
+   store box fractions instead and every override silently slides when the
+   scale changes. */
+
+/* The long axis of a set of points, by principal component. A bridge walk is a
+   line — deck loop out, elevations back — so the axis through the photos IS
+   the structure, and it is worth drawing because it turns a scatter of dots
+   into something recognisable enough to correct. */
+function principalAxis(pts) {
+  const n = pts.length;
+  let mx = 0, my = 0;
+  for (const p of pts) { mx += p.x; my += p.y; }
+  mx /= n; my /= n;
+  let sxx = 0, syy = 0, sxy = 0;
+  for (const p of pts) {
+    const dx = p.x - mx, dy = p.y - my;
+    sxx += dx * dx; syy += dy * dy; sxy += dx * dy;
+  }
+  /* degenerate (one point, or every photo on the same fix) falls out as 0,
+     i.e. due east — arbitrary, but it is a line the user can drag off */
+  const th = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+  return { mx, my, dx: Math.cos(th), dy: Math.sin(th) };
+}
+
+/* Where several bearings agree something is. Each sighting is a place and a
+   true bearing from it; the answer is the point with the least total squared
+   distance to all those lines, which is a 2x2 solve and no iteration.
+
+   Two bearings that are nearly parallel cross at a place enormously sensitive
+   to a fraction of a degree in either — the classic way a plausible-looking
+   triangulation lands in the next county. `det` measures exactly that
+   degeneracy, so it is the gate: too small and this returns null rather than a
+   number nobody should trust. Normalised by the sighting count so the
+   threshold means the same thing for two bearings and for twenty. */
+const CROSS_MIN_CONDITION = 0.12;
+function triangulate(sightings) {
+  if (!sightings || sightings.length < 2) return null;
+  let a11 = 0, a12 = 0, a22 = 0, b1 = 0, b2 = 0;
+  for (const s of sightings) {
+    const th = s.bearing * Math.PI / 180;
+    /* the bearing's normal: the residual being minimised is the distance from
+       the answer to the line, measured across it */
+    const nx = -Math.cos(th), ny = Math.sin(th);
+    const c = nx * s.x + ny * s.y;
+    a11 += nx * nx; a12 += nx * ny; a22 += ny * ny;
+    b1 += nx * c; b2 += ny * c;
+  }
+  const n = sightings.length;
+  const det = (a11 * a22 - a12 * a12) / (n * n);
+  if (!(Math.abs(det) >= CROSS_MIN_CONDITION)) return null;
+  const d = a11 * a22 - a12 * a12;
+  return { x: (a22 * b1 - a12 * b2) / d, y: (a11 * b2 - a12 * b1) / d };
+}
+
+/* Wide enough for a long viaduct and its approaches, far short of a bad fix. */
+const PLAN_MAX_SPAN_M = 5000;
+
+/* "191,829 m away" is a number; "192 km away" is a fact somebody can act on. */
+const niceAway = m => (m >= 10000 ? `${Math.round(m / 1000)} km` : `${m.toLocaleString()} m`);
+
+function planPositions(scenes) {
+  const list = scenes || [];
+  if (list.length < 2) return null; /* one dot is not a plan */
+  const hasFix = s => Number.isFinite(s.geo?.lat) && Number.isFinite(s.geo?.lon);
+  const fixed = list.filter(hasFix);
+
+  /* ---- a fix that is not on this structure ----
+
+     A phone hands back the lock it had, not the lock it should have: indoors,
+     under a deck, or straight after driving from the last site, one photo in a
+     set comes back with a position miles from the rest. One of those used to
+     take the WHOLE plate down — the span blew past the sanity cap and the
+     editor drew nothing at all, so nine good photos were hidden by the tenth.
+     That is a worse failure than the confident wrong map it was guarding
+     against, because it hides the evidence instead of the error.
+
+     So the outlier is dropped rather than the plate. What gets dropped keeps
+     its GPS on the scene untouched — it simply stops being used to place a dot,
+     and falls through to the same capture-order guess as a photo that never had
+     a fix, where it can be dragged home.
+
+     The centre it is measured from is the MEDOID: the fix whose median distance
+     to all the others is smallest, which is to say the one standing deepest in
+     the crowd. A mean would be dragged toward the outlier by the outlier. A
+     component-wise median is worse than it looks — with an even number of fixes
+     it combines one photo's latitude with another's longitude and can land at a
+     corner where nobody stood, which on two photos put the "centre" 160 km from
+     one and 76 km from the other and threw out both.
+
+     And below three fixes nothing is rejected at all, because there is no
+     majority to appeal to: with two photos a long way apart, one of them is
+     wrong and the data cannot say which. */
+  const median = arr => { const a = [...arr].sort((x, y) => x - y); return a[a.length >> 1] ?? 0; };
+  const centre = fixed.length < 3 ? null : fixed
+    .map(s => ({ s, spread: median(fixed.filter(o => o !== s).map(o => metresBetween(s.geo, o.geo))) }))
+    .sort((a, b) => a.spread - b.spread)[0].s.geo;
+  const located = centre ? fixed.filter(s => metresBetween(centre, s.geo) <= PLAN_MAX_SPAN_M) : fixed;
+  const strays = fixed.filter(s => !located.includes(s))
+    .map(s => ({ id: s.id, away: Math.round(metresBetween(centre, s.geo)) }));
+  const onSite = new Set(located.map(s => s.id));
+  const origin = located[0]?.geo || null;
+
+  const placed = new Map();
+  for (const s of list) {
+    if (Number.isFinite(s.plan?.x) && Number.isFinite(s.plan?.y)) {
+      placed.set(s.id, { id: s.id, x: s.plan.x, y: s.plan.y, kind: 'manual' });
+    } else if (origin && onSite.has(s.id)) {
+      const d = metresBetween(origin, s.geo);
+      const b = bearing(origin, s.geo) * Math.PI / 180;
+      placed.set(s.id, { id: s.id, x: d * Math.sin(b), y: d * Math.cos(b), kind: 'gps' });
+    }
+  }
+
+  /* the structure's axis, from whatever is actually pinned down. Scale is a
+     stricter claim: only the distance between two real GPS fixes is a
+     measurement. Two hand-dragged dots alone must NOT flip the plan to
+     "scaled" — the metres a drag stores are read out of whatever frame it was
+     dropped in, which with no fix anywhere is the nominal one below. */
+  const anchors = [...placed.values()];
+  const scaled = located.length >= 2;
+  const axis = anchors.length ? principalAxis(anchors) : { mx: 0, my: 0, dx: 1, dy: 0 };
+  const along = p => (p.x - axis.mx) * axis.dx + (p.y - axis.my) * axis.dy;
+  const ts = anchors.map(along);
+  const NOMINAL_M = 40; /* a plausible short span, so an ungeolocated tour is not drawn as a dot */
+  const tMin = scaled ? Math.min(...ts) : -NOMINAL_M / 2;
+  const tMax = scaled ? Math.max(...ts) : NOMINAL_M / 2;
+
+  /* Spread the unplaced along that axis in the order they were shot, which is
+     the order the inspector walked. Evenly, because the spacing is not known —
+     that is exactly the part the dragging is for. */
+  const loose = list.filter(s => !placed.has(s.id));
+  loose.forEach((s, i) => {
+    const t = loose.length === 1
+      ? (tMin + tMax) / 2
+      : tMin + (tMax - tMin) * i / (loose.length - 1);
+    placed.set(s.id, { id: s.id, x: axis.mx + axis.dx * t, y: axis.my + axis.dy * t, kind: 'guess' });
+  });
+
+  const pts = list.map(s => placed.get(s.id)).filter(Boolean);
+  const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  /* one-metre floor: every photo standing on the same fix would otherwise
+     divide by zero and put every dot at NaN. The 1.18 leaves the outermost
+     dots a little clear of the border instead of half-buried in it. */
+  const span = Math.max(maxX - minX, maxY - minY, 1) * 1.18;
+  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+  /* screen v grows downward; north stays up */
+  const toBox = p => ({ u: 0.5 + (p.x - cx) / span, v: 0.5 - (p.y - cy) / span });
+  const toMetres = (u, v) => ({ x: cx + (u - 0.5) * span, y: cy - (v - 0.5) * span });
+
+  /* The vehicle, from every photo that both saw it and knows which way it was
+     facing. Only ever drawn from a real crossing — with one sighting, or with
+     sightings too nearly parallel to cross, there is no position and none is
+     shown. Placed AFTER the box is fitted, deliberately: a bad triangulation
+     must not be able to rescale the plan and move every photo on it. */
+  const byId = new Map(pts.map(p => [p.id, p]));
+  const sightings = [];
+  for (const s of list) {
+    const at = byId.get(s.id);
+    if (!at || !Number.isFinite(s.vehicle?.yaw) || !Number.isFinite(s.geo?.heading)) continue;
+    sightings.push({ x: at.x, y: at.y, bearing: s.geo.heading + s.vehicle.yaw });
+  }
+  const fix = triangulate(sightings);
+  const inBox = fix && toBox(fix);
+  const vehicle = inBox && inBox.u >= 0 && inBox.u <= 1 && inBox.v >= 0 && inBox.v <= 1
+    ? { ...inBox, from: sightings.length }
+    : null;
+
+  const end = t => toBox({ x: axis.mx + axis.dx * t, y: axis.my + axis.dy * t });
+  return {
+    pts: pts.map(p => ({ ...p, ...toBox(p) })),
+    deck: { from: end(tMin), to: end(tMax) },
+    span, scaled, oriented: !!origin, toMetres, vehicle, strays,
+  };
+}
+
+/* True bearing from one plan position to the next — x east, y north, north up,
+   the same frame planPositions works in. */
+const planBearing = (from, to) => (Math.atan2(to.x - from.x, to.y - from.y) * 180 / Math.PI + 360) % 360;
+
+/* The tour's links as lines to draw between plotted photos.
+
+   A pair is ONE line however many arrows connect it, because two lines lying on
+   top of each other is one line as far as anyone reading the plan can tell. But
+   which way it works is worth keeping: a link placed in one direction only is a
+   dead end from the far side, and on the plan that is the difference between a
+   route and a trap. So `both` says whether it walks in both directions, and
+   `from`/`to` orient the arrow along the one direction that does work. */
+function planEdges(scenes, pts) {
+  const at = new Map((pts || []).map(p => [p.id, p]));
+  const edges = new Map();
+  for (const s of scenes || []) {
+    for (const h of s.hotspots || []) {
+      if (h.type !== 'link' || h.target === s.id) continue;
+      const here = at.get(s.id), there = at.get(h.target);
+      if (!here || !there) continue; /* a link to a deleted scene draws nothing */
+      /* one key per unordered pair, so A->B and B->A meet in the same slot */
+      const flip = s.id > h.target;
+      const key = flip ? `${h.target} ${s.id}` : `${s.id} ${h.target}`;
+      const e = edges.get(key) || { a: flip ? there : here, b: flip ? here : there, ab: false, ba: false };
+      if (flip) e.ba = true; else e.ab = true;
+      edges.set(key, e);
+    }
+  }
+  return [...edges.values()].map(e => ({
+    a: e.a, b: e.b, both: e.ab && e.ba,
+    from: e.ab ? e.a : e.b, to: e.ab ? e.b : e.a,
+  }));
+}
+
+/* A cell Excel will read back as the text that was typed. Quoting handles
+   commas, quotes and newlines; the apostrophe handles the other thing, which is
+   that Excel treats a leading =, +, - or @ as a formula no matter how it is
+   quoted.
+   The minus belongs in that set. An earlier version left it out, reasoning that
+   "-2 in" is a measurement somebody meant to write — but the Measure column is
+   generated by fmtIn() and can never begin with a minus, while Note, Scene,
+   Element and Station are free text and can. That rationale defended the one
+   column never at risk and left open the four that were. */
+function csvCell(v) {
+  let s = String(v ?? '');
+  if (/^[=+@\t\r-]/.test(s)) s = `'${s}`;
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+/* The defect register: one row per defect across the whole tour, in the same
+   columns the field-sketch tool's XLSX uses, plus where the photo was taken
+   from. Sorted by code NUMERICALLY, so D10 follows D9 rather than D1. */
+function registerCsv(tour) {
+  const rows = [['Code', 'Type', 'Measure', 'Scene', 'Photo stop', 'Element', 'Station', 'Note']];
+  const found = tourDefects(tour);
+  found.sort((a, b) => (parseInt(a.h.code?.slice(1), 10) || 0) - (parseInt(b.h.code?.slice(1), 10) || 0));
+  for (const { h, s } of found) {
+    rows.push([h.code, h.defect, defectMeasure(h), s.name, s.stop, s.element, s.station, h.note]);
+  }
+  return rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+}
+
+/* Every defect in the tour, with the photo it was marked on. Lives here rather
+   than beside the paper deliverables it was written for because the register,
+   the photo log, the editor's tally and now the plan all read it, and one
+   collection loop is enough for all four. */
+function tourDefects(tour) {
+  return (tour?.scenes || []).flatMap(s => (s.hotspots || [])
+    .filter(h => h.type === 'defect').map(h => ({ h, s })));
+}
+
+/* How many defects each photo carries. The register is a flat list with no map
+   in it, so this is what puts the findings back on the ground they were found
+   on. A photo with none is absent, not a zero — nothing to draw. */
+function defectCounts(tour) {
+  const out = new Map();
+  for (const { s } of tourDefects(tour)) out.set(s.id, (out.get(s.id) || 0) + 1);
+  return out;
+}
+
+/* A round number of metres to rule the grid and the scale bar at: the 1-2-5
+   sequence, the largest that still fits across the plate at least four times.
+   A grid at a quarter of an arbitrary span is decoration; a grid at 10 m is a
+   measurement, and it is the same pixels either way. */
+function niceMetres(span) {
+  const raw = (Number.isFinite(span) && span > 0 ? span : 1) / 4;
+  const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+  return [5, 2, 1].map(m => m * pow).find(v => v <= raw) || pow;
+}
+
+/* Which way a photo looks, as a compass bearing: where the shutter pointed,
+   turned by however far the tour swings the view on opening — the same sum the
+   viewer's compass needle is drawn from, so the plan and the needle can never
+   disagree. No recorded heading returns null rather than north: a wedge is a
+   claim about which pier this is a shot of, and a guessed one is a wrong one. */
+function facingBearing(scene) {
+  const h = scene?.geo?.heading;
+  if (!Number.isFinite(h)) return null;
+  return +((((h + (scene.view?.yaw || 0)) % 360) + 360) % 360).toFixed(2);
+}
+
+/* The compass bearing from one plan position to another point on the plate —
+   the inverse of the arm each arrow is drawn along, and what turns "the pointer
+   is here" into "you are aiming there". Plate coordinates: u right, v DOWN,
+   north up, which is why v is subtracted the other way round from planBearing's
+   metres. */
+const aimFromPoint = (from, at) =>
+  (Math.atan2(at.u - from.u, from.v - at.v) * 180 / Math.PI + 360) % 360;
+
+/* The inverse of facingBearing: what to store as a photo's heading so that it
+   ends up looking the way somebody just turned its arrow. The camera's bearing
+   is where the MIDDLE of the file points, and the arrow shows where the opening
+   view points, so the view's own yaw has to come back out.
+
+   One line, but in the fence and tested, because a sign error here is the kind
+   nothing catches: every arrow would still point somewhere entirely plausible,
+   and every one of them would be wrong by twice the opening yaw. */
+const headingForAim = (scene, aim) =>
+  +(((((aim - (scene?.view?.yaw || 0)) % 360) + 360) % 360)).toFixed(2);
+
+/* The dart every photo wears on the plan, drawn once and then only ever
+   rotated. Its box is four dot-diameters square with the dot at the centre, so
+   in this 100-unit viewBox one dot-diameter is 25 units and the centre is 50.
+
+   The tip lands 50 units out — two dot-diameters, the whole point of the
+   shape's proportions — and the notched tail stops 18.5 out, comfortably clear
+   of the 12.5-unit dot it belongs to. Points north at rotation 0, which is what
+   lets a bearing be applied as a plain CSS rotate with no maths at all. */
+const AIM_DART = 'M 50 0 L 60.5 22.5 L 50 31.5 L 39.5 22.5 Z';
+
+/* ---------- working out the bearings nobody recorded ----------
+
+   Three things could already give a photo a bearing, and all three depend on
+   the camera: GPSImgDirection in the EXIF, PoseHeadingDegrees in a photo
+   sphere's XMP, or the sun in the frame plus a fix and a clock. A phone with
+   its compass off, an action camera, or any indoor walk gets none of them, and
+   until now that tour simply had no bearings at all — no compass in the
+   viewer, no real angles on the plan, and every link arrow aimed by guesswork.
+
+   Two more ways exist, and neither needs the camera to have known anything:
+
+     match  Two photos of the same place, taken from a few metres apart, share
+            their skyline. correlateYaw already measures how far one is turned
+            from the other, to within a column, and yawBetween already refuses
+            when the two bands disagree. So a bearing on ONE photo carries to
+            every photo that shares a view with it, and onward from there —
+            which means aiming a single arrow by hand can bearing a whole walk.
+     plan   A link you placed by hand says "the way to B is over there", and
+            the plan says where B is. The difference is this photo's bearing.
+
+   Both are proposals: the caller writes them into geo.heading tagged with which
+   one produced them, the scene panel says so, and the arrow on the plan turns
+   them by hand. Nothing here overwrites a bearing that already exists.
+
+   ponytail: the match pass correlates every pair once — 256-column circular
+   correlation, so about n²/2 × 65k operations, a second or so at forty photos.
+   That is why it is a button and not something renderPlan does. If it ever
+   needs to be cheaper, the profiles are already summarised down to two bands;
+   an FFT is the next step, not a smaller n. */
+
+/* How far a bearing may travel from the photo that actually knows one.
+
+   Every hop is a measured turn that already cleared MATCH_MIN_CONFIDENCE, so
+   the thing that degrades along a chain is not belief, it is ANGLE: each hop
+   is right to within a column or two, and those errors add. Three hops is a
+   couple of degrees of accumulated slop, which a plan can carry; twenty hops
+   down a viaduct is a number with no relationship to the ground.
+
+   Deliberately a hop count and not a product of confidences. Confidence here
+   is a peak-to-rival ratio, not a probability — multiplying two of them says
+   nothing about two turns both being right, and in practice it killed every
+   chain at the second hop because a legitimate match sits around 0.4. */
+const HEADING_MATCH_HOPS = 3;
+/* How far two photos may disagree about where a third one points before the
+   answer is thrown away. Three hops of honest column-level error is a couple of
+   degrees, so twenty leaves room for that and still catches a genuine
+   contradiction — which is a mismatch, not a rounding error. */
+const HEADING_MATCH_SPREAD = 20;
+/* Two links from one photo that cannot agree within this are not evidence of
+   anything, and their average would be a number with no source. */
+const HEADING_PLAN_SPREAD = 25;
+/* How far apart two photos have to stand before the bearing between them is
+   worth anything. Phone GPS is good to a few metres, so two dots four metres
+   apart have a bearing that can be sixty degrees wrong — the shorter the
+   baseline, the more of it is error. Ten metres keeps the worst case near
+   twenty degrees, which is a direction; below that it is noise wearing a
+   number. */
+const HEADING_PLAN_BASELINE_M = 10;
+
+/* A bearing this photo was TOLD, as against one worked out for it below. Only
+   the told ones seed the search, and only they are left alone: a derived
+   bearing has to be free to move, because the thing it was derived from can. A
+   photo that inherited its bearing from its neighbour and then watched that
+   neighbour be turned by hand would otherwise keep pointing at the old answer
+   for ever, and be the one photo on the plate nobody can explain. */
+const HEADING_DERIVED = new Set(['match', 'plan']);
+const headingIsSeed = s =>
+  Number.isFinite(s?.geo?.heading) && !HEADING_DERIVED.has(s.geo.headingFrom);
+
+function deriveHeadings(scenes, pts, cache) {
+  const list = scenes || [];
+  if (list.length < 2) return [];
+  const wrap360 = deg => ((deg % 360) + 360) % 360;
+  const seed = list.map(headingIsSeed);
+
+  /* ---- pass one: carry a known bearing along shared views ----
+     The pair graph is built once and reused, rather than re-correlating on
+     every hop of the search. The reverse of a turn is its negative, so only
+     half the pairs are ever measured.
+
+     A caller may hand in a Map to keep that graph across calls, and the editor
+     does. What a pair of photos measures depends on their stored profiles,
+     which are written once at upload and never touched again — so an answer is
+     good for the life of the tour, and the O(n²) correlation that made this a
+     button in the first place is paid once rather than on every hand aim. */
+  const turn = new Map(), sure = new Map();
+  const measured = cache instanceof Map ? cache : new Map();
+  for (let i = 0; i < list.length; i++) {
+    for (let j = i + 1; j < list.length; j++) {
+      /* keyed by id, not index, or reordering or deleting a photo would hand
+         back another pair's answer */
+      const key = list[i].id < list[j].id ? `${list[i].id} ${list[j].id}` : `${list[j].id} ${list[i].id}`;
+      if (!measured.has(key)) measured.set(key, yawBetween(list[i], list[j]) || null);
+      const t = measured.get(key);
+      if (!t) continue;
+      /* the cache is keyed on the sorted pair, so which way round it was
+         measured has to be recovered rather than assumed */
+      const forward = list[i].id < list[j].id ? t.degrees : -t.degrees;
+      turn.set(`${i} ${j}`, forward);
+      turn.set(`${j} ${i}`, -forward);
+      sure.set(`${i} ${j}`, t.confidence);
+      sure.set(`${j} ${i}`, t.confidence);
+    }
+  }
+
+  /* Breadth first, so every photo is reached by the FEWEST turns from a photo
+     that already knows — fewest turns is least accumulated angle. Among routes
+     of equal length the more confident match wins, which is what the second
+     condition below is for. */
+  const heading = list.map((s, i) => (seed[i] ? wrap360(s.geo.heading) : null));
+  const hops = list.map((s, i) => (seed[i] ? 0 : Infinity));
+  const routeSure = list.map((s, i) => (seed[i] ? 1 : 0));
+  let frontier = list.map((s, i) => i).filter(i => seed[i]);
+  for (let step = 1; step <= HEADING_MATCH_HOPS && frontier.length; step++) {
+    const next = [];
+    for (const k of frontier) {
+      for (let j = 0; j < list.length; j++) {
+        if (seed[j] || hops[j] < step) continue;
+        const c = sure.get(`${k} ${j}`);
+        if (c === undefined) continue;
+        if (hops[j] === step && c <= routeSure[j]) continue;
+        hops[j] = step;
+        routeSure[j] = c;
+        /* the same world direction sits `turn` degrees further round in j's
+           frame than in k's, so j's own frame starts that much earlier */
+        heading[j] = wrap360(heading[k] - turn.get(`${k} ${j}`));
+        if (!next.includes(j)) next.push(j);
+      }
+    }
+    frontier = next;
+  }
+
+  /* ---- and then made to answer to every neighbour, not just its own route ----
+     The search takes the best route to each photo and stops. That is fine when
+     there is one route and wrong when there are several: two photos can each
+     match this one confidently and still disagree about where it points, and
+     the winner-takes-all rule would pick one and never notice. Any photo whose
+     neighbours cannot agree on it within HEADING_MATCH_SPREAD gets nothing,
+     which is the same rule the plan pass already applies to two links that
+     contradict each other. */
+  for (let j = 0; j < list.length; j++) {
+    if (seed[j] || heading[j] === null) continue;
+    for (let k = 0; k < list.length; k++) {
+      if (k === j || heading[k] === null) continue;
+      const t = turn.get(`${k} ${j}`);
+      if (t === undefined) continue;
+      if (Math.abs(wrap180(wrap360(heading[k] - t) - heading[j])) > HEADING_MATCH_SPREAD) {
+        heading[j] = null;
+        break;
+      }
+    }
+  }
+
+  /* ---- pass two: what the links and the plan already say ----
+     Only where BOTH ends are really placed. A dot laid out by capture order is
+     a placeholder for a position, and a bearing measured off it would be an
+     invention wearing the clothes of a measurement. */
+  const at = new Map((pts || []).map(p => [p.id, p]));
+  const real = id => at.get(id)?.kind === 'gps' || at.get(id)?.kind === 'manual';
+  const answer = list.map((s, i) => (seed[i] || heading[i] === null ? null
+    : { heading: heading[i], from: 'match', hops: hops[i] }));
+  list.forEach((s, i) => {
+    if (seed[i] || answer[i] || !real(s.id)) return;
+    const from = [];
+    for (const h of s.hotspots || []) {
+      if (h.type !== 'link' || !h.target || h.target === s.id) continue;
+      if (!Number.isFinite(h.yaw) || !real(h.target)) continue;
+      /* An arrow the linker guessed the angle of is not evidence about which
+         way this photo faces. Reading one back would close a loop: guess an
+         arrow off nothing, then derive a bearing off the arrow, then present
+         the bearing as worked out. Only an angle somebody aimed, or one that
+         came off a real compass bearing, gets a vote. */
+      if (h.aim !== 'set') continue;
+      /* and a bearing between two dots standing almost on top of each other is
+         mostly the error in where they stand */
+      const here = at.get(s.id), there = at.get(h.target);
+      if (Math.hypot(there.x - here.x, there.y - here.y) < HEADING_PLAN_BASELINE_M) continue;
+      from.push(wrap360(planBearing(here, there) - h.yaw));
+    }
+    if (!from.length) return;
+    /* circular mean, because two links either side of north average to south */
+    let sx = 0, sy = 0;
+    for (const b of from) { sx += Math.cos(b * Math.PI / 180); sy += Math.sin(b * Math.PI / 180); }
+    const mean = wrap360(Math.atan2(sy, sx) * 180 / Math.PI);
+    if (from.some(b => Math.abs(wrap180(b - mean)) > HEADING_PLAN_SPREAD)) return;
+    answer[i] = { heading: mean, from: 'plan' };
+  });
+
+  /* ---- what actually changed ----
+     Two kinds of change, and the second one is the whole reason this reports
+     differences rather than answers. A bearing that can no longer be justified
+     has to be WITHDRAWN, not merely left un-refreshed: a tour carrying bearings
+     derived under looser rules — off arrows the linker had guessed, say — would
+     otherwise keep them for ever, because nothing would ever propose over the
+     top of them. Silence from the evidence has to be able to take a number
+     away, or the first version of these rules is the one that sticks.
+
+     Unchanged answers are not reported at all, so a pass that agrees with
+     itself costs no save and leaves no empty step in Undo. */
+  const out = [];
+  list.forEach((s, i) => {
+    if (seed[i]) return;
+    const had = Number.isFinite(s.geo?.heading) ? s.geo.heading : null;
+    const now = answer[i];
+    if (!now) {
+      if (had !== null) out.push({ id: s.id, heading: null, from: null });
+      return;
+    }
+    if (had !== null && Math.abs(wrap180(had - now.heading)) < 0.01) return;
+    out.push({ id: s.id, heading: +now.heading.toFixed(2), from: now.from, ...(now.hops ? { hops: now.hops } : {}) });
+  });
+
+  return out;
+}
+
+/* The photos the finished tour cannot reach.
+
+   One definition, because there were two and they disagreed. The pre-share
+   check treated the first photo as the front door when no start scene had been
+   chosen; the scene list did not, so it printed a red orphan dot on the very
+   photo a visitor would land on and a warning about a tour that was fine. The
+   check's reading is the right one — something has to be the front door — so
+   that is the one that survives. */
+function strandedScenes(tour) {
+  const scenes = tour?.scenes || [];
+  if (!scenes.length) return [];
+  const linked = new Set();
+  for (const s of scenes) {
+    for (const h of s.hotspots || []) if (h.type === 'link' && h.target) linked.add(h.target);
+  }
+  const startId = tour.settings?.startScene || scenes[0].id;
+  return scenes.filter(s => s.id !== startId && !linked.has(s.id)).map(s => s.id);
+}
+
+
+
+const SCENES = [
+  {
+    "id": "s01",
+    "name": "W approach",
+    "stop": "Approach roadway",
+    "view": {
+      "yaw": 0,
+      "pitch": 0
+    },
+    "hotspots": [
+      {
+        "id": "l0-1",
+        "type": "link",
+        "target": "s02",
+        "yaw": 0,
+        "pitch": -20
+      }
+    ],
+    "station": "1+00",
+    "geo": {
+      "lat": 40.4415754,
+      "lon": -79.9833887,
+      "heading": 62,
+      "headingFrom": "recorded"
+    },
+    "vehicle": {
+      "yaw": 5.34,
+      "width": 34
+    }
+  },
+  {
+    "id": "s02",
+    "name": "W abutment, N kerb",
+    "stop": "Abutments",
+    "view": {
+      "yaw": 0,
+      "pitch": 0
+    },
+    "hotspots": [
+      {
+        "id": "l1-0",
+        "type": "link",
+        "target": "s01",
+        "yaw": 180,
+        "pitch": -20
+      },
+      {
+        "id": "l1-3",
+        "type": "link",
+        "target": "s04",
+        "yaw": 0,
+        "pitch": -20
+      },
+      {
+        "id": "l1-2",
+        "type": "link",
+        "target": "s03",
+        "yaw": 90,
+        "pitch": -20
+      },
+      {
+        "id": "l1-15",
+        "type": "link",
+        "target": "s16",
+        "yaw": -30,
+        "pitch": -20
+      }
+    ],
+    "station": "1+10",
+    "geo": {
+      "lat": 40.4416484,
+      "lon": -79.983298,
+      "heading": 62,
+      "headingFrom": "recorded"
+    }
+  },
+  {
+    "id": "s03",
+    "name": "W abutment, S kerb",
+    "stop": "Abutments",
+    "view": {
+      "yaw": 0,
+      "pitch": 0
+    },
+    "hotspots": [
+      {
+        "id": "l2-4",
+        "type": "link",
+        "target": "s05",
+        "yaw": 0,
+        "pitch": -20
+      },
+      {
+        "id": "l2-1",
+        "type": "link",
+        "target": "s02",
+        "yaw": 270,
+        "pitch": -20
+      }
+    ],
+    "station": "1+10",
+    "geo": {
+      "lat": 40.4415639,
+      "lon": -79.9832576
+    }
+  },
+  {
+    "id": "s04",
+    "name": "Span 1, N kerb",
+    "stop": "Deck",
+    "view": {
+      "yaw": 0,
+      "pitch": 0
+    },
+    "hotspots": [
+      {
+        "id": "l3-1",
+        "type": "link",
+        "target": "s02",
+        "yaw": 180,
+        "pitch": -20
+      },
+      {
+        "id": "l3-5",
+        "type": "link",
+        "target": "s06",
+        "yaw": 0,
+        "pitch": -20
+      }
+    ],
+    "station": "1+20",
+    "geo": {
+      "lat": 40.4416791,
+      "lon": -79.9831871,
+      "heading": 66,
+      "headingFrom": "magnetic"
+    }
+  },
+  {
+    "id": "s05",
+    "name": "Span 1, S kerb",
+    "stop": "Deck",
+    "view": {
+      "yaw": 0,
+      "pitch": 0
+    },
+    "hotspots": [
+      {
+        "id": "s05d0",
+        "type": "defect",
+        "yaw": 0,
+        "pitch": -10,
+        "code": "D1",
+        "defect": "Spall"
+      },
+      {
+        "id": "l4-2",
+        "type": "link",
+        "target": "s03",
+        "yaw": 180,
+        "pitch": -20
+      },
+      {
+        "id": "l4-6",
+        "type": "link",
+        "target": "s07",
+        "yaw": 0,
+        "pitch": -20
+      }
+    ],
+    "station": "1+20",
+    "geo": {
+      "lat": 40.4415947,
+      "lon": -79.9831467
+    }
+  },
+  {
+    "id": "s06",
+    "name": "Span 1 mid, N kerb",
+    "stop": "Deck",
+    "view": {
+      "yaw": 0,
+      "pitch": 0
+    },
+    "hotspots": [
+      {
+        "id": "l5-3",
+        "type": "link",
+        "target": "s04",
+        "yaw": 180,
+        "pitch": -20
+      },
+      {
+        "id": "l5-7",
+        "type": "link",
+        "target": "s08",
+        "yaw": 0,
+        "pitch": -20
+      }
+    ],
+    "station": "1+30",
+    "geo": {
+      "lat": 40.4417098,
+      "lon": -79.9830762,
+      "heading": 61,
+      "headingFrom": "sun"
+    }
+  },
+  {
+    "id": "s07",
+    "name": "Span 1 mid, S kerb",
+    "stop": "Deck",
+    "view": {
+      "yaw": 0,
+      "pitch": 0
+    },
+    "hotspots": [
+      {
+        "id": "l6-4",
+        "type": "link",
+        "target": "s05",
+        "yaw": 180,
+        "pitch": -20
+      },
+      {
+        "id": "l6-8",
+        "type": "link",
+        "target": "s09",
+        "yaw": 0,
+        "pitch": -20
+      }
+    ],
+    "station": "1+30",
+    "geo": {
+      "lat": 40.4416254,
+      "lon": -79.9830358
+    }
+  },
+  {
+    "id": "s08",
+    "name": "Pier 1, N kerb",
+    "stop": "Pier, column",
+    "view": {
+      "yaw": 0,
+      "pitch": 0
+    },
+    "hotspots": [
+      {
+        "id": "s08d0",
+        "type": "defect",
+        "yaw": 0,
+        "pitch": -10,
+        "code": "D1",
+        "defect": "Spall"
+      },
+      {
+        "id": "s08d1",
+        "type": "defect",
+        "yaw": 20,
+        "pitch": -10,
+        "code": "D2",
+        "defect": "Spall"
+      },
+      {
+        "id": "s08d2",
+        "type": "defect",
+        "yaw": 40,
+        "pitch": -10,
+        "code": "D3",
+        "defect": "Spall"
+      },
+      {
+        "id": "l7-5",
+        "type": "link",
+        "target": "s06",
+        "yaw": 180,
+        "pitch": -20
+      },
+      {
+        "id": "l7-9",
+        "type": "link",
+        "target": "s10",
+        "yaw": 0,
+        "pitch": -20
+      },
+      {
+        "id": "l7-8",
+        "type": "link",
+        "target": "s09",
+        "yaw": 90,
+        "pitch": -20
+      },
+      {
+        "id": "l7-16",
+        "type": "link",
+        "target": "s17",
+        "yaw": -30,
+        "pitch": -20
+      }
+    ],
+    "station": "1+38",
+    "geo": {
+      "lat": 40.4417344,
+      "lon": -79.9829874,
+      "heading": 154,
+      "headingFrom": "hand"
+    }
+  },
+  {
+    "id": "s09",
+    "name": "Pier 1, S kerb",
+    "stop": "Pier, column",
+    "view": {
+      "yaw": 0,
+      "pitch": 0
+    },
+    "hotspots": [
+      {
+        "id": "l8-6",
+        "type": "link",
+        "target": "s07",
+        "yaw": 180,
+        "pitch": -20
+      },
+      {
+        "id": "l8-10",
+        "type": "link",
+        "target": "s11",
+        "yaw": 0,
+        "pitch": -20
+      },
+      {
+        "id": "l8-7",
+        "type": "link",
+        "target": "s08",
+        "yaw": 270,
+        "pitch": -20
+      }
+    ],
+    "station": "1+38",
+    "geo": {
+      "lat": 40.44165,
+      "lon": -79.9829471,
+      "heading": 334,
+      "headingFrom": "hand"
+    },
+    "vehicle": {
+      "yaw": 41.54,
+      "width": 34
+    }
+  },
+  {
+    "id": "s10",
+    "name": "Span 2, N kerb",
+    "stop": "Deck",
+    "view": {
+      "yaw": 0,
+      "pitch": 0
+    },
+    "hotspots": [
+      {
+        "id": "l9-7",
+        "type": "link",
+        "target": "s08",
+        "yaw": 180,
+        "pitch": -20
+      },
+      {
+        "id": "l9-11",
+        "type": "link",
+        "target": "s12",
+        "yaw": 0,
+        "pitch": -20
+      }
+    ],
+    "station": "1+48",
+    "geo": {
+      "lat": 40.4417651,
+      "lon": -79.9828765,
+      "heading": 63,
+      "headingFrom": "recorded"
+    }
+  },
+  {
+    "id": "s11",
+    "name": "Span 2, S kerb",
+    "stop": "Deck",
+    "view": {
+      "yaw": 0,
+      "pitch": 0
+    },
+    "hotspots": [
+      {
+        "id": "l10-8",
+        "type": "link",
+        "target": "s09",
+        "yaw": 180,
+        "pitch": -20
+      },
+      {
+        "id": "l10-12",
+        "type": "link",
+        "target": "s13",
+        "yaw": 0,
+        "pitch": -20
+      }
+    ],
+    "station": "1+48",
+    "geo": {
+      "lat": 40.4416807,
+      "lon": -79.9828362
+    }
+  },
+  {
+    "id": "s12",
+    "name": "Span 2 mid, N kerb",
+    "stop": "Deck",
+    "view": {
+      "yaw": 0,
+      "pitch": 0
+    },
+    "hotspots": [
+      {
+        "id": "l11-9",
+        "type": "link",
+        "target": "s10",
+        "yaw": 180,
+        "pitch": -20
+      },
+      {
+        "id": "l11-13",
+        "type": "link",
+        "target": "s14",
+        "yaw": 0,
+        "pitch": -20
+      }
+    ],
+    "station": "1+58",
+    "geo": {
+      "lat": 40.4417958,
+      "lon": -79.9827656,
+      "heading": 64,
+      "headingFrom": "recorded"
+    }
+  },
+  {
+    "id": "s13",
+    "name": "Span 2 mid, S kerb",
+    "stop": "Deck",
+    "view": {
+      "yaw": 0,
+      "pitch": 0
+    },
+    "hotspots": [
+      {
+        "id": "l12-10",
+        "type": "link",
+        "target": "s11",
+        "yaw": 180,
+        "pitch": -20
+      },
+      {
+        "id": "l12-17",
+        "type": "link",
+        "target": "s18",
+        "yaw": 0,
+        "pitch": -20
+      },
+      {
+        "id": "l12-13",
+        "type": "link",
+        "target": "s14",
+        "yaw": 270,
+        "pitch": -20
+      }
+    ],
+    "station": "1+58",
+    "geo": {
+      "lat": 40.4417114,
+      "lon": -79.9827252
+    }
+  },
+  {
+    "id": "s14",
+    "name": "E abutment",
+    "stop": "Abutments",
+    "view": {
+      "yaw": 0,
+      "pitch": 0
+    },
+    "hotspots": [
+      {
+        "id": "l13-11",
+        "type": "link",
+        "target": "s12",
+        "yaw": 180,
+        "pitch": -20
+      },
+      {
+        "id": "l13-14",
+        "type": "link",
+        "target": "s15",
+        "yaw": 0,
+        "pitch": -20
+      },
+      {
+        "id": "l13-12",
+        "type": "link",
+        "target": "s13",
+        "yaw": 90,
+        "pitch": -20
+      }
+    ],
+    "station": "1+66",
+    "geo": {
+      "lat": 40.4417782,
+      "lon": -79.9826567,
+      "heading": 243,
+      "headingFrom": "recorded"
+    },
+    "vehicle": {
+      "yaw": 11.97,
+      "width": 34
+    }
+  },
+  {
+    "id": "s15",
+    "name": "E approach",
+    "stop": "Approach roadway",
+    "view": {
+      "yaw": 0,
+      "pitch": 0
+    },
+    "hotspots": [
+      {
+        "id": "l14-13",
+        "type": "link",
+        "target": "s14",
+        "yaw": 180,
+        "pitch": -20
+      }
+    ],
+    "station": "1+76",
+    "geo": {
+      "lat": 40.4418089,
+      "lon": -79.9825458,
+      "heading": 243,
+      "headingFrom": "recorded"
+    }
+  },
+  {
+    "id": "s16",
+    "name": "Bearings, W abutment",
+    "stop": "Bearings",
+    "view": {
+      "yaw": 0,
+      "pitch": 0
+    },
+    "hotspots": [
+      {
+        "id": "s16d0",
+        "type": "defect",
+        "yaw": 0,
+        "pitch": -10,
+        "code": "D1",
+        "defect": "Spall"
+      },
+      {
+        "id": "s16d1",
+        "type": "defect",
+        "yaw": 20,
+        "pitch": -10,
+        "code": "D2",
+        "defect": "Spall"
+      },
+      {
+        "id": "l15-1",
+        "type": "link",
+        "target": "s02",
+        "yaw": 150,
+        "pitch": -20
+      }
+    ],
+    "geo": {
+      "lat": 40.4415332,
+      "lon": -79.9832304,
+      "heading": 152,
+      "headingFrom": "hand"
+    },
+    "plan": {
+      "x": 5.897259152288743,
+      "y": -7.43117315709617
+    }
+  },
+  {
+    "id": "s17",
+    "name": "Pier cap, underside",
+    "stop": "Pier, column",
+    "view": {
+      "yaw": 0,
+      "pitch": 0
+    },
+    "hotspots": [
+      {
+        "id": "s17d0",
+        "type": "defect",
+        "yaw": 0,
+        "pitch": -10,
+        "code": "D1",
+        "defect": "Spall"
+      },
+      {
+        "id": "s17d1",
+        "type": "defect",
+        "yaw": 20,
+        "pitch": -10,
+        "code": "D2",
+        "defect": "Spall"
+      },
+      {
+        "id": "s17d2",
+        "type": "defect",
+        "yaw": 40,
+        "pitch": -10,
+        "code": "D3",
+        "defect": "Spall"
+      },
+      {
+        "id": "s17d3",
+        "type": "defect",
+        "yaw": 60,
+        "pitch": -10,
+        "code": "D4",
+        "defect": "Spall"
+      },
+      {
+        "id": "s17d4",
+        "type": "defect",
+        "yaw": 80,
+        "pitch": -10,
+        "code": "D5",
+        "defect": "Spall"
+      },
+      {
+        "id": "s17d5",
+        "type": "defect",
+        "yaw": 100,
+        "pitch": -10,
+        "code": "D6",
+        "defect": "Spall"
+      },
+      {
+        "id": "s17d6",
+        "type": "defect",
+        "yaw": 120,
+        "pitch": -10,
+        "code": "D7",
+        "defect": "Spall"
+      },
+      {
+        "id": "s17d7",
+        "type": "defect",
+        "yaw": 140,
+        "pitch": -10,
+        "code": "D8",
+        "defect": "Spall"
+      },
+      {
+        "id": "s17d8",
+        "type": "defect",
+        "yaw": 160,
+        "pitch": -10,
+        "code": "D9",
+        "defect": "Spall"
+      },
+      {
+        "id": "s17d9",
+        "type": "defect",
+        "yaw": 180,
+        "pitch": -10,
+        "code": "D10",
+        "defect": "Spall"
+      },
+      {
+        "id": "s17d10",
+        "type": "defect",
+        "yaw": 200,
+        "pitch": -10,
+        "code": "D11",
+        "defect": "Spall"
+      },
+      {
+        "id": "s17d11",
+        "type": "defect",
+        "yaw": 220,
+        "pitch": -10,
+        "code": "D12",
+        "defect": "Spall"
+      },
+      {
+        "id": "l16-7",
+        "type": "link",
+        "target": "s08",
+        "yaw": 150,
+        "pitch": -20
+      }
+    ],
+    "geo": {
+      "lat": 40.4416078,
+      "lon": -79.9829269,
+      "heading": 341,
+      "headingFrom": "hand"
+    },
+    "plan": {
+      "x": 31.610980056833938,
+      "y": 0.8636780919109768
+    }
+  },
+  {
+    "id": "s18",
+    "name": "Bearings, E abutment",
+    "stop": "Bearings",
+    "view": {
+      "yaw": 0,
+      "pitch": 0
+    },
+    "hotspots": [
+      {
+        "id": "l17-12",
+        "type": "link",
+        "target": "s13",
+        "yaw": 180,
+        "pitch": -20
+      },
+      {
+        "id": "l17-18",
+        "type": "link",
+        "target": "s19",
+        "yaw": -60,
+        "pitch": -20
+      }
+    ],
+    "geo": {
+      "lat": 40.4416992,
+      "lon": -79.9826315
+    }
+  },
+  {
+    "id": "s19",
+    "name": "Channel, upstream",
+    "stop": "Channel",
+    "view": {
+      "yaw": 0,
+      "pitch": 0
+    },
+    "hotspots": []
+  },
+  {
+    "id": "s20",
+    "name": "Channel, downstream",
+    "stop": "Channel",
+    "view": {
+      "yaw": 0,
+      "pitch": 0
+    },
+    "hotspots": []
+  }
+];
+let curSceneId = "s08";
+const PLAN_LABEL_MAX = 12;
+let planLabels = null;
+let planMoveOnly = false;
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const el = h => { const t = document.createElement('template'); t.innerHTML = h.trim(); return t.content.firstElementChild; };
+
+/* ---- the copy of renderPlan's markup this preview exists to show ---- */
+function draw() {
+  const box = document.getElementById('plan-box');
+  box.innerHTML = '';
+  const plan = planPositions(SCENES);
+  const step = plan.scaled ? niceMetres(plan.span) : 0;
+  if (step) box.style.setProperty('--plan-grid', (step / plan.span * 100).toFixed(4) + '%');
+
+  const d = plan.deck;
+  const x1 = d.from.u * 100, y1 = d.from.v * 100, x2 = d.to.u * 100, y2 = d.to.v * 100;
+  const len = Math.hypot(x2 - x1, y2 - y1) || 1;
+  const nx = -(y2 - y1) / len * 3, ny = (x2 - x1) / len * 3;
+  const seg = (ax, ay, bx, by, cls) => `<line class="${cls}" x1="${ax.toFixed(2)}" y1="${ay.toFixed(2)}"
+    x2="${bx.toFixed(2)}" y2="${by.toFixed(2)}"${cls === 'band' ? '' : ' vector-effect="non-scaling-stroke"'}/>`;
+  const edges = planEdges(SCENES, plan.pts);
+
+  box.append(el(`<svg class="plan-lines" viewBox="0 0 100 100" preserveAspectRatio="none">
+    <defs aria-hidden="true"><marker id="plan-arrow" class="plan-arrow" viewBox="0 0 8 8" refX="7" refY="4"
+      markerUnits="userSpaceOnUse" markerWidth="4" markerHeight="4" orient="auto">
+      <path d="M0 0 L8 4 L0 8 Z"/></marker></defs>
+    <g class="plan-deck" aria-hidden="true">
+      ${seg(x1, y1, x2, y2, 'band')}
+      ${seg(x1 + nx, y1 + ny, x2 + nx, y2 + ny, 'edge')}
+      ${seg(x1 - nx, y1 - ny, x2 - nx, y2 - ny, 'edge')}
+      ${seg(x1 + nx, y1 + ny, x1 - nx, y1 - ny, 'abut')}
+      ${seg(x2 + nx, y2 + ny, x2 - nx, y2 - ny, 'abut')}
+      ${seg(x1, y1, x2, y2, 'mid')}
+    </g>
+    <g class="plan-edges" aria-hidden="true">${edges.map(e => {
+      const ex = (e.to.u - e.from.u) * 100, ey = (e.to.v - e.from.v) * 100;
+      const l = Math.hypot(ex, ey);
+      const ux = l ? ex / l * 2.6 : 0, uy = l ? ey / l * 2.6 : 0;
+      const lit = e.a.id === curSceneId || e.b.id === curSceneId;
+      const cls = [e.both ? '' : 'one', lit ? 'on' : ''].filter(Boolean).join(' ');
+      return `<line class="${cls}"
+        x1="${((e.from.u * 100) + ux).toFixed(2)}" y1="${((e.from.v * 100) + uy).toFixed(2)}"
+        x2="${((e.to.u * 100) - ux).toFixed(2)}" y2="${((e.to.v * 100) - uy).toFixed(2)}"
+        ${e.both || !l ? '' : 'marker-end="url(#plan-arrow)"'} vector-effect="non-scaling-stroke"/>`;
+    }).join('')}</g>
+  </svg>`));
+
+  /* arrows before dots, so a defect badge is never buried under one */
+  for (const p of plan.pts) {
+    const s = SCENES.find(x => x.id === p.id);
+    const bear = facingBearing(s);
+    const said = bear === null
+      ? `${s.name} has no bearing yet. Drag this arrow, or press the arrow keys, to say which way it looks.`
+      : `${s.name} looks ${Math.round(bear)} degrees. Drag this arrow, or press the arrow keys, to change it.`;
+    const mark = el(`<button class="plan-aim${p.id === curSceneId ? ' on' : ''}${bear === null ? ' unset' : ''}"
+      data-aim-id="${esc(p.id)}" role="slider" aria-valuemin="0" aria-valuemax="359"
+      aria-valuenow="${Math.round(bear ?? 0)}" aria-label="${esc(said)}"
+      title="${esc(bear === null ? 'Not aimed yet — drag to turn' : Math.round(bear) + '° — drag to turn')}"
+      style="left:${(p.u * 100).toFixed(2)}%;top:${(p.v * 100).toFixed(2)}%"
+      ><svg viewBox="0 0 100 100" aria-hidden="true"><path d="${AIM_DART}"/></svg></button>`);
+    mark.style.transform = `translate(-50%, -50%) rotate(${bear ?? 0}deg)`;
+    box.append(mark);
+    wireAim(mark, box, plan);
+  }
+
+  const defects = defectCounts({ scenes: SCENES });
+  const stray = new Set(strandedScenes({ scenes: SCENES, settings: { startScene: SCENES[0].id } }));
+  const labelMode = planLabels ?? (plan.pts.length > PLAN_LABEL_MAX ? 'none' : 'name');
+  for (const p of plan.pts) {
+    const s = SCENES.find(x => x.id === p.id);
+    const on = p.id === curSceneId;
+    const label = [s.name, s.station && ('Sta ' + s.station)].filter(Boolean).join(' — ');
+    const caption = { name: s.name, stop: s.stop, station: s.station && ('Sta ' + s.station) }[labelMode] || '';
+    const where = { gps: 'from GPS', manual: 'placed by hand', guess: 'guessed' }[p.kind];
+    const nd = defects.get(p.id) || 0;
+    const lost = stray.has(p.id);
+    const said = [`${label}, ${where}`, nd ? `${nd} defect${nd === 1 ? '' : 's'}` : '',
+      lost ? 'nothing links to it' : ''].filter(Boolean).join('. ');
+    const dot = el(`<button class="plan-dot k-${p.kind}${on ? ' on' : ''}${lost ? ' stray' : ''}"
+      data-plan-id="${esc(p.id)}"${caption ? ' data-name="' + esc(caption) + '"' : ''}
+      title="${esc(said)}" aria-label="${esc(said)}"
+      aria-current="${on}" style="left:${(p.u * 100).toFixed(2)}%;top:${(p.v * 100).toFixed(2)}%"
+      >${nd ? `<span class="plan-def num">${nd > 9 ? '9+' : nd}</span>` : ''}</button>`);
+    dot.addEventListener('click', () => { if (!dot.dataset.dragged) { curSceneId = p.id; draw(); } });
+    wireMove(dot, box, plan, p.id);
+    box.append(dot);
+  }
+
+  if (plan.vehicle) {
+    const v = plan.vehicle;
+    box.append(el(`<svg class="plan-truck" viewBox="0 0 26 14" role="img"
+      aria-label="Plant on the deck, crossed from ${v.from} photos"
+      style="left:${(v.u * 100).toFixed(2)}%;top:${(v.v * 100).toFixed(2)}%">
+      <path d="M1 2h13v8H1z"/><path d="M14 5h4l4 3v2h-8z"/>
+      <circle cx="5" cy="11" r="1.6"/><circle cx="11" cy="11" r="1.6"/><circle cx="19" cy="11" r="1.6"/>
+    </svg>`));
+  }
+  if (plan.oriented) box.append(el('<span class="plan-north" aria-hidden="true">N</span>'));
+  if (step) {
+    box.append(el(`<span class="plan-scale" aria-hidden="true"
+      style="width:${(step / plan.span * 100).toFixed(4)}%">${+step.toFixed(2)} m</span>`));
+  }
+
+
+  const counts = plan.pts.reduce((a, p) => (a[p.kind]++, a), { gps: 0, manual: 0, guess: 0 });
+  const aimed = plan.pts.filter(p => facingBearing(SCENES.find(s => s.id === p.id)) !== null).length;
+  const marked = [...defects.values()].reduce((a, n) => a + n, 0);
+  const oneWay = edges.filter(e => !e.both).length;
+  document.getElementById('plan-how').textContent =
+    'Drag a photo to where it stood. Each photo carries an arrow for the way it looks — drag the arrow '
+    + 'to turn it, or focus it and use the arrow keys. Click a photo to select it.';
+  document.getElementById('plan-note').textContent = [
+    `Sized by GPS: about ${Math.round(plan.span)} m across — each grid square is ${+step.toFixed(2)} m.`,
+    counts.guess ? `${counts.guess} placed by capture order — drag them onto the right spot.` : '',
+    counts.manual ? `${counts.manual} moved by hand.` : '',
+    `${edges.length} links drawn between them, ${oneWay} of which walks one way only — dashed, with the arrow on the end that works.`,
+    stray.size ? `${stray.size} in red — nothing links to it, so it is in the record but not in the walk.` : '',
+    `${marked} defects counted on the photos that carry them.`,
+    `Bearing known on ${aimed} of ${plan.pts.length} photos — turn a dashed arrow to aim another.`,
+    planLabels === null && labelMode === 'none'
+      ? `Names are off above ${PLAN_LABEL_MAX} photos because they overlap into a smear — the Labels control puts them back, or swaps them for the station or the photo stop.`
+      : '',
+    plan.vehicle ? `The truck is plant on the deck, crossed from ${plan.vehicle.from} photos that saw it.` : '',
+    'Phone GPS is good to a few metres, so treat this as a sketch.',
+  ].filter(Boolean).join(' ');
+}
+
+/* Drag a photo to where it stood. The editor's version can also drop one dot
+   on another to link them; this preview keeps only the move half, since there
+   is nothing here to save a link into — which is exactly what the editor's
+   Move only tick does, and the tick above turns the snap-to-neighbour off in
+   the editor for the same reason it is absent here. */
+function wireMove(dot, box, plan, id) {
+  dot.addEventListener('pointerdown', ev => {
+    if (ev.button !== 0) return;
+    ev.preventDefault();
+    const rect = box.getBoundingClientRect();
+    try { dot.setPointerCapture(ev.pointerId); } catch { /* the drag still works */ }
+    let at = null;
+    const move = e => {
+      at = { u: Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)),
+             v: Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height)) };
+      dot.classList.add('dragging');
+      dot.style.left = (at.u * 100).toFixed(2) + '%';
+      dot.style.top = (at.v * 100).toFixed(2) + '%';
+    };
+    const up = () => {
+      dot.removeEventListener('pointermove', move);
+      dot.removeEventListener('pointerup', up);
+      dot.classList.remove('dragging');
+      if (!at) return;
+      dot.dataset.dragged = '1';
+      SCENES.find(s => s.id === id).plan = plan.toMetres(at.u, at.v);
+      draw();
+    };
+    dot.addEventListener('pointermove', move);
+    dot.addEventListener('pointerup', up);
+  });
+}
+
+/* drag to turn, the same three helpers the editor uses */
+function wireAim(g, box, plan) {
+  const p = plan.pts.find(x => x.id === g.dataset.aimId);
+  const scene = SCENES.find(x => x.id === g.dataset.aimId);
+  const drawAt = deg => {
+    g.style.transform = `translate(-50%, -50%) rotate(${deg.toFixed(1)}deg)`;
+    g.classList.remove('unset');
+    g.setAttribute('aria-valuenow', String(Math.round(deg)));
+  };
+  const commit = aim => {
+    scene.geo = scene.geo || {};
+    scene.geo.heading = headingForAim(scene, aim);
+    scene.geo.headingFrom = 'hand';
+    draw();
+    box.querySelector('.plan-aim[data-aim-id="' + CSS.escape(p.id) + '"]')?.focus();
+  };
+  g.addEventListener('pointerdown', ev => {
+    ev.preventDefault(); ev.stopPropagation();
+    const rect = box.getBoundingClientRect();
+    try { g.setPointerCapture(ev.pointerId); } catch { /* the turn still works */ }
+    let aim = null;
+    const move = e => {
+      aim = aimFromPoint(p, { u: (e.clientX - rect.left) / rect.width, v: (e.clientY - rect.top) / rect.height });
+      drawAt(aim);
+    };
+    const up = () => {
+      g.removeEventListener('pointermove', move);
+      g.removeEventListener('pointerup', up);
+      if (aim !== null) commit(aim);
+    };
+    g.addEventListener('pointermove', move);
+    g.addEventListener('pointerup', up);
+  });
+  g.addEventListener('keydown', e => {
+    const dir = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[e.key];
+    if (!dir) return;
+    e.preventDefault();
+    commit(((facingBearing(scene) ?? 0) + dir * (e.shiftKey ? 15 : 5) + 360) % 360);
+  });
+}
+
+/* zoom about the pointer — the same handler the editor runs, and the reason it
+   measures twice rather than doing arithmetic on scroll offsets is written up
+   at toggleMap() in tour/index.html */
+const ov = document.querySelector('.map-view');
+const scroll = ov.querySelector('.map-scroll');
+const zoomInput = document.getElementById('zoom');
+let mapZoom = 1;
+const setZoom = (want, ax, ay) => {
+  const z = Math.min(+zoomInput.max, Math.max(+zoomInput.min, want));
+  if (z === mapZoom) return;
+  const plate = document.getElementById('plan-box');
+  const was = plate.getBoundingClientRect();
+  const fx = was.width ? (ax - was.left) / was.width : 0.5;
+  const fy = was.height ? (ay - was.top) / was.height : 0.5;
+  mapZoom = z;
+  ov.style.setProperty('--map-zoom', String(z));
+  zoomInput.value = String(z);
+  const now = plate.getBoundingClientRect();
+  scroll.scrollLeft += now.left - (ax - fx * now.width);
+  scroll.scrollTop += now.top - (ay - fy * now.height);
+};
+zoomInput.addEventListener('input', e => {
+  const r = scroll.getBoundingClientRect();
+  setZoom(+e.target.value, r.left + r.width / 2, r.top + r.height / 2);
+});
+scroll.addEventListener('wheel', e => {
+  if (!e.ctrlKey && !e.metaKey) return;
+  e.preventDefault();
+  setZoom(mapZoom * Math.exp(-e.deltaY * 0.012), e.clientX, e.clientY);
+}, { passive: false });
+const labelSel = document.getElementById('labels');
+labelSel.value = SCENES.length > PLAN_LABEL_MAX ? 'none' : 'name';
+labelSel.addEventListener('change', e => { planLabels = e.target.value; draw(); });
+document.getElementById('moveonly').addEventListener('change', e => { planMoveOnly = e.target.checked; draw(); });
+draw();
+</script>
+</body>
+</html>

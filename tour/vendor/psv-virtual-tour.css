@@ -1,0 +1,117 @@
+/*!
+ * Photo Sphere Viewer / Virtual Tour Plugin 5.14.3
+ * @copyright 2015-2026 Damien "Mistic" Sorel
+ * @licence MIT (https://opensource.org/licenses/MIT)
+ */
+/* src/styles/index.scss */
+.psv-container {
+  --psv-virtual-tour-plugin-loaded: true;
+}
+.psv-virtual-tour-tooltip h3 {
+  margin: 0;
+  padding: 0;
+  line-height: normal;
+}
+.psv-virtual-tour-tooltip h3:not(:last-child) {
+  margin-bottom: 0.5em;
+}
+.psv-virtual-tour-tooltip img {
+  display: block;
+  width: 200px;
+  margin: 0 -1em;
+}
+.psv-virtual-tour-tooltip img:first-child {
+  border-radius: 4px 4px 0 0;
+}
+.psv-virtual-tour-tooltip img:last-child {
+  border-radius: 0 0 4px 4px;
+}
+.psv-virtual-tour-tooltip img:not(:last-child) {
+  margin-bottom: 0.5em;
+}
+.psv-virtual-tour-tooltip p {
+  margin: 0;
+  padding: 0;
+  line-height: normal;
+}
+.psv-virtual-tour-link {
+  cursor: pointer;
+  transform-origin: center;
+}
+.psv-virtual-tour-arrows {
+  position: absolute;
+  overflow: visible !important;
+  z-index: 11;
+  bottom: 0;
+  left: 0;
+  filter: drop-shadow(0 10px 2px rgba(0, 0, 0, 0.7));
+  pointer-events: none;
+  transition: margin ease-in-out 0.3s;
+}
+.psv-virtual-tour-arrows .psv-virtual-tour-link {
+  transition: opacity linear 0.2s;
+}
+.psv-virtual-tour-arrows .psv-virtual-tour-link:hover {
+  opacity: 1 !important;
+}
+.psv-virtual-tour-arrow {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+}
+.psv-virtual-tour-arrow:hover {
+  animation: psv-virtual-tour-link-button-in 1s ease-out forwards;
+}
+.psv-virtual-tour-loader {
+  display: block;
+  position: relative;
+  width: 40px;
+  height: 30px;
+  margin: 0 40px;
+}
+.psv-virtual-tour-loader div {
+  display: inline-block;
+  position: absolute;
+  left: 10%;
+  width: 20%;
+  background: #fff;
+  animation: psv-virtual-tour-loader 1.2s cubic-bezier(0, 0.5, 0.5, 1) infinite;
+}
+.psv-virtual-tour-loader div:nth-child(1) {
+  left: 10%;
+  animation-delay: -0.24s;
+}
+.psv-virtual-tour-loader div:nth-child(2) {
+  left: 40%;
+  animation-delay: -0.12s;
+}
+.psv-virtual-tour-loader div:nth-child(3) {
+  left: 70%;
+  animation-delay: 0;
+}
+@keyframes psv-virtual-tour-loader {
+  0% {
+    top: 10%;
+    height: 80%;
+  }
+  50%, 100% {
+    top: 30%;
+    height: 40%;
+  }
+}
+@keyframes psv-virtual-tour-link-button-in {
+  0% {
+    box-shadow: 0 0 0 0 rgba(97, 170, 242, 0);
+  }
+  20% {
+    box-shadow: 0 0 0 5px #61aaf2;
+  }
+  100% {
+    box-shadow: 0 0 0 20px rgba(97, 170, 242, 0);
+  }
+}
+/*# sourceMappingURL=index.css.map */

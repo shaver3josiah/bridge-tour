@@ -1,0 +1,171 @@
+{
+  "id": "fixture-bridge-v1",
+  "v": 1,
+  "name": "Fixture bridge (schema v1)",
+  "created": "2026-07-31T09:00:00+00:00",
+  "updated": "2026-07-31T09:42:11.512834+00:00",
+  "settings": {
+    "startScene": "s-approach",
+    "autorotate": true,
+    "autorotateSpeed": 0.6,
+    "littlePlanetIntro": true,
+    "logo": "aa11bb22cc33dd44.png",
+    "logoLink": "https://example.invalid/bridges",
+    "audio": "ee55ff66aa77bb88.mp3"
+  },
+  "inspection": {
+    "structureId": "12-0034-0250-1234",
+    "date": "2026-07-30",
+    "by": "J. Shaver",
+    "sheet": "1 of 2"
+  },
+  "scenes": [
+    {
+      "id": "s-approach",
+      "name": "Approach, north end",
+      "file": "1111111111111111.jpg",
+      "thumb": "1111111111111111.thumb.jpg",
+      "size": { "w": 8192, "h": 4096 },
+      "view": { "yaw": -12.5, "pitch": -4, "zoom": 50 },
+      "viewFrom": "shot",
+      "geo": {
+        "lat": 40.4416,
+        "lon": -79.9833,
+        "heading": 271.4,
+        "headingRef": "T",
+        "headingFrom": "recorded"
+      },
+      "stop": "Approach roadway",
+      "element": "Approach slab",
+      "station": "0+00",
+      "shot": "2026-07-30T13:04:22",
+      "ways": [0, 118.5, -119],
+      "prof": "eHyAhIeLjpGUl5mbnZ6foKCgn56dm5mXlJGOi4eEgHx4dHBsaWViX1xZV1VTUlFQUFBRUlNVV1lcX2JlaWxwdFBQUE9OTk1LSklHRURCQD48Ojg2NDMxLy4tKyoqKSgoKCgoKSoqKy0uLzEzNDY4Ojw+QEJERUdJSktNTk5PUFA=",
+      "hotspots": [
+        {
+          "id": "h-link-deck",
+          "type": "link",
+          "yaw": 118.5,
+          "pitch": -20,
+          "target": "s-deck",
+          "label": "Onto the deck",
+          "shape": "arrow",
+          "size": 44,
+          "opacity": 1
+        },
+        {
+          "id": "h-info-plaque",
+          "type": "info",
+          "yaw": -64,
+          "pitch": 6,
+          "shape": "circle",
+          "size": 40,
+          "opacity": 0.9,
+          "icon": "info",
+          "title": "Builder's plaque",
+          "text": "Cast 1931, rehabilitated 1998. Plaque legible, no section loss.",
+          "audio": "cc99dd00ee11ff22.mp3",
+          "image": "3333333333333333.jpg"
+        }
+      ]
+    },
+    {
+      "id": "s-deck",
+      "name": "Deck at midspan",
+      "file": "2222222222222222.jpg",
+      "thumb": "2222222222222222.thumb.jpg",
+      "size": { "w": 4096, "h": 1536 },
+      "pano": { "hFov": 212, "pitch": 8 },
+      "fill": { "top": "#8fa6c4", "bottom": "#4a4a4a" },
+      "converted": true,
+      "view": { "yaw": 0, "pitch": 0, "zoom": 50 },
+      "geo": {
+        "lat": 40.44175,
+        "lon": -79.9833,
+        "heading": 92.7,
+        "headingRef": "T",
+        "headingFrom": "sun"
+      },
+      "vehicle": { "yaw": 18.4 },
+      "stop": "Deck wearing surface",
+      "element": "Wearing surface",
+      "station": "1+25",
+      "shot": "2026-07-30T13:11:07",
+      "hotspots": [
+        {
+          "id": "h-link-back",
+          "type": "link",
+          "yaw": -61.5,
+          "pitch": -20,
+          "target": "s-approach",
+          "label": "Back to the approach"
+        },
+        {
+          "id": "h-link-abut",
+          "type": "link",
+          "yaw": 96,
+          "pitch": -20,
+          "target": "s-abutment",
+          "label": "South abutment"
+        },
+        {
+          "id": "h-d1",
+          "type": "defect",
+          "yaw": 24,
+          "pitch": -34,
+          "code": "D1",
+          "defect": "Spall",
+          "depthIn": 0.5,
+          "rebar": true,
+          "note": "Spall in the wheel path, reinforcement exposed and lightly pitted.",
+          "shape": "diamond",
+          "size": 40,
+          "opacity": 1
+        },
+        {
+          "id": "h-d2",
+          "type": "defect",
+          "yaw": -140,
+          "pitch": -28,
+          "code": "D2",
+          "defect": "Crack",
+          "widthIn": 0.0625,
+          "note": "Transverse crack, full deck width, no efflorescence."
+        }
+      ]
+    },
+    {
+      "id": "s-abutment",
+      "name": "South abutment",
+      "file": "4444444444444444.jpg",
+      "thumb": "4444444444444444.thumb.jpg",
+      "size": { "w": 4032, "h": 3024 },
+      "pano": { "hFov": 68, "pitch": -6 },
+      "plan": { "x": 41.5, "y": -12.25 },
+      "stop": "Wing walls",
+      "element": "Wing wall, flared",
+      "station": "2+50",
+      "hotspots": [
+        {
+          "id": "h-url-spec",
+          "type": "url",
+          "yaw": 8,
+          "pitch": 0,
+          "shape": "square",
+          "label": "Repair detail",
+          "url": "https://example.invalid/details/wingwall-repair"
+        },
+        {
+          "id": "h-d3",
+          "type": "defect",
+          "yaw": -22,
+          "pitch": -12,
+          "code": "D3",
+          "defect": "Map cracking",
+          "widthIn": 0.125,
+          "note": "Map cracking across the wing wall face, no spalling yet."
+        }
+      ]
+    }
+  ]
+}

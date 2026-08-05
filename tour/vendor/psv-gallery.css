@@ -1,0 +1,220 @@
+/*!
+ * Photo Sphere Viewer / Gallery Plugin 5.14.3
+ * @copyright 2015-2026 Damien "Mistic" Sorel
+ * @licence MIT (https://opensource.org/licenses/MIT)
+ */
+/* src/styles/index.scss */
+.psv-container {
+  --psv-gallery-plugin-loaded: true;
+}
+.psv-gallery {
+  --psv-gallery-breakpoint: 500px;
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  background: rgba(61, 61, 61, 0.5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.7);
+  overflow: hidden;
+  transition: transform ease-in-out 0.1s;
+  transform: translateY(100%);
+  z-index: 41;
+  cursor: default;
+}
+.psv--has-navbar .psv-gallery {
+  bottom: 40px;
+  transform: translateY(calc(100% + 40px));
+}
+.psv-gallery--open {
+  transform: translateY(0) !important;
+}
+.psv-gallery-container {
+  display: flex;
+  align-content: flex-start;
+  padding: 15px;
+  overflow: auto hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.6) transparent;
+}
+.psv-gallery-item {
+  flex: none;
+  position: relative;
+  border-radius: 5px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.psv-gallery-item:not(:last-child) {
+  margin-right: 15px;
+}
+.psv-gallery-item-title {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  box-sizing: border-box;
+  width: 100%;
+  height: 2.2em;
+  padding: 0.5em;
+  background: rgba(0, 0, 0, 0.6);
+  font: 16px sans-serif;
+  line-height: 1.2em;
+  color: rgba(255, 255, 255, 0.7);
+  z-index: 2;
+  transition: height ease-in-out 0.2s;
+}
+.psv-gallery-item-title span {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  user-select: none;
+}
+.psv-gallery-item-thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-position: center center;
+  background-size: cover;
+  transform: scale3d(1, 1, 1);
+  transition: transform ease-in-out 0.2s;
+  z-index: 1;
+}
+.psv-gallery-item:hover .psv-gallery-item-title {
+  height: 100%;
+}
+.psv-gallery-item:hover .psv-gallery-item-title span {
+  white-space: normal;
+}
+.psv-gallery-item:hover .psv-gallery-item-thumb {
+  transform: scale3d(1.2, 1.2, 1);
+}
+.psv-gallery-item:focus-visible {
+  outline: 2px solid #007cff;
+}
+.psv-gallery-item--active::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border: 3px solid white;
+  z-index: 3;
+}
+.psv-gallery-arrow {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 15px;
+  z-index: 9;
+  cursor: pointer;
+  transition: opacity 0.3s ease-in-out;
+}
+.psv-gallery-arrow svg {
+  color: rgba(255, 255, 255, 0.6);
+  filter: drop-shadow(5px 5px 2px black);
+  transition: translate 0.3s ease-in-out;
+}
+.psv-gallery-arrow--left,
+.psv-gallery-arrow--right {
+  top: 0;
+  bottom: 0;
+}
+.psv-gallery-arrow--left svg,
+.psv-gallery-arrow--right svg {
+  height: 60%;
+  max-height: 60px;
+}
+.psv-gallery-arrow--left {
+  left: 0;
+  background:
+    linear-gradient(
+      to left,
+      transparent 0%,
+      rgba(0, 0, 0, 0.6) 50%);
+}
+.psv-gallery-arrow--left svg {
+  scale: -1 1;
+}
+.psv-gallery-arrow--left:hover svg {
+  translate: -10px 0;
+}
+.psv-gallery-arrow--right {
+  right: 0;
+  background:
+    linear-gradient(
+      to right,
+      transparent 0%,
+      rgba(0, 0, 0, 0.6) 50%);
+}
+.psv-gallery-arrow--right:hover svg {
+  translate: 10px 0;
+}
+.psv-gallery-arrow--top,
+.psv-gallery-arrow--bottom {
+  left: 0;
+  right: 0;
+  padding: 0;
+}
+.psv-gallery-arrow--top svg,
+.psv-gallery-arrow--bottom svg {
+  height: 60px;
+}
+.psv-gallery-arrow--top {
+  top: 0;
+  background:
+    linear-gradient(
+      to top,
+      transparent 0%,
+      rgba(0, 0, 0, 0.6) 50%);
+}
+.psv-gallery-arrow--top svg {
+  rotate: -90deg;
+  scale: 1 1.2;
+}
+.psv-gallery-arrow--top:hover svg {
+  translate: 0 -10px;
+}
+.psv-gallery-arrow--bottom {
+  bottom: 0;
+  background:
+    linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(0, 0, 0, 0.6) 50%);
+}
+.psv-gallery-arrow--bottom svg {
+  rotate: -90deg;
+  scale: -1 1.2;
+}
+.psv-gallery-arrow--bottom:hover svg {
+  translate: 0 10px;
+}
+.psv-gallery-arrow {
+}
+@container psv-container (max-width: 500px) {
+  .psv-gallery {
+    top: 0;
+  }
+  .psv-gallery-container {
+    flex-wrap: wrap;
+    height: calc(100% - 32px);
+    margin-top: 32px;
+    padding: 0 0 0 15px;
+    overflow: hidden auto;
+  }
+  .psv-gallery-item {
+    width: calc(50% - 15px) !important;
+    margin-bottom: 15px;
+  }
+  .psv-gallery .psv-panel-close-button {
+    display: block;
+    z-index: 10;
+  }
+}
+/*# sourceMappingURL=index.css.map */
