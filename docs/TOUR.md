@@ -20,7 +20,9 @@ Or from a terminal:
 python server.py
 ```
 
-Then open <http://localhost:7360/tour>.
+It opens itself in your browser, normally at <http://localhost:7370>. If
+something else already holds that port it steps to the next free one and
+prints which; `--port` pins it, `--no-browser` skips the auto-open.
 
 On first run a **"Sample Apartment"** tour is copied in so you have something
 to walk through before you own any 360 photos. Delete it whenever — it's a

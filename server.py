@@ -15,6 +15,7 @@ import tempfile
 import threading
 import time
 import urllib.parse
+import urllib.request
 import zipfile
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -918,28 +919,101 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 
+DEFAULT_PORT = 7370  # NOT 7360: that is Orbit Studio's port, and this app
+# was born from that codebase. On the machines most likely to run both, the
+# first double-click of start.bat found Orbit Studio already on 7360, failed
+# to bind, and the browser opened the WRONG APP with total confidence.
+
+
+def whats_on(port: int) -> str:
+    """Name whatever is already answering on a port, when it will say."""
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=2) as r:
+            app = json.loads(r.read().decode("utf-8")).get("app")
+            return str(app) if app else "another server"
+    except Exception:
+        return "another server"
+
+
+def bind_with_fallback(preferred: int, explicit: bool, host: str) -> ThreadingHTTPServer:
+    """Bind the preferred port; if it is taken and the user did not insist on
+    it, walk upward a few steps rather than dying — a double-click tool has
+    nobody reading its traceback. Every deviation is announced, and an
+    EXPLICIT --port that is busy fails loudly instead: the user asked for that
+    port for a reason this code cannot know."""
+    candidates = [preferred] if explicit else [preferred + i for i in range(10)]
+    for port in candidates:
+        try:
+            return build_server(port, host)
+        except OSError:
+            squatter = whats_on(port)
+            if explicit:
+                raise SystemExit(
+                    f"Port {port} is already in use by {squatter}. "
+                    "Stop it, or pick another port with --port."
+                )
+            print(f"Port {port} is busy ({squatter}) - trying {port + 1}", flush=True)
+    raise SystemExit(
+        f"Ports {preferred}-{preferred + 9} are all in use. "
+        "Pick one explicitly with --port."
+    )
+
+
+class _ExclusiveServer(ThreadingHTTPServer):
+    """A port this server holds is HELD. The stdlib default sets SO_REUSEADDR,
+    and on Windows that flag means something very different from POSIX: a
+    second process can bind the same address and STEAL the traffic. That is
+    how three copies of this server all "successfully" served one port in
+    testing, and how a user's start.bat put Orbit Studio in their browser —
+    both apps bound 7360 and Windows picked which one answered. POSIX keeps
+    reuse for the opposite reason: without it, a restart after Ctrl+C waits
+    out TIME_WAIT."""
+
+    allow_reuse_address = os.name != "nt"
+
+    def server_bind(self) -> None:
+        if os.name == "nt":
+            SO_EXCLUSIVEADDRUSE = getattr(socket, "SO_EXCLUSIVEADDRUSE", None)
+            if SO_EXCLUSIVEADDRUSE is not None:
+                self.socket.setsockopt(socket.SOL_SOCKET, SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
 def build_server(port: int, host: str = "127.0.0.1") -> ThreadingHTTPServer:
-    return ThreadingHTTPServer((host, port), Handler)
+    return _ExclusiveServer((host, port), Handler)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Bridge Tour server")
-    parser.add_argument("--port", type=int, default=7360)
+    parser.add_argument("--port", type=int, default=None,
+                        help=f"port to serve on (default {DEFAULT_PORT}, stepping past it if busy)")
     parser.add_argument(
         "--lan",
         action="store_true",
         help="also listen on the local network, so a phone or tablet on the same wifi can open the tour (default: localhost only)",
     )
+    parser.add_argument("--no-browser", action="store_true",
+                        help="do not open the browser after starting")
     args = parser.parse_args()
     host = "0.0.0.0" if args.lan else "127.0.0.1"
     global SERVE_LAN
     SERVE_LAN = args.lan
     seed_sample_tour()
     prune_trash()
-    server = build_server(args.port, host)
-    print(f"Bridge Tour serving on http://127.0.0.1:{args.port}", flush=True)
+    server = bind_with_fallback(args.port or DEFAULT_PORT, args.port is not None, host)
+    port = server.server_address[1]
+    url = f"http://127.0.0.1:{port}"
+    print(f"Bridge Tour serving on {url}", flush=True)
     if args.lan:
-        print(f"LAN mode: also reachable at http://<this-machine's-IP>:{args.port}", flush=True)
+        print(f"LAN mode: also reachable at http://<this-machine's-IP>:{port}", flush=True)
+    # The server opens the browser, not the launcher script: only the server
+    # knows which port it really bound, and only after it really bound it.
+    # start.bat used to fire the browser at a fixed port on a timer, and when
+    # Orbit Studio was squatting there, the user got the wrong app opened at
+    # them with total confidence.
+    if not args.no_browser:
+        import webbrowser
+        threading.Timer(0.4, lambda: webbrowser.open(url)).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -24,15 +24,17 @@ if not defined PY (
 )
 
 echo.
-echo   Bridge Tour is starting at:  http://localhost:7360
+echo   Bridge Tour is starting -- it will open in your browser itself,
+echo   at the address printed below ^(normally http://localhost:7370^).
 echo.
 echo   A "Sample Apartment" tour is already there to walk through.
 echo   Keep THIS window open while you use the app.
 echo   Close it (or press Ctrl+C) to stop the server.
 echo.
 
-REM open the browser a couple of seconds later, without blocking the server
-start "" /min cmd /c "ping -n 3 127.0.0.1 >nul && start http://localhost:7360"
+REM The server opens the browser itself once it has really started, at the
+REM port it really bound. Opening it from here on a timer at a fixed port
+REM once sent a user to Orbit Studio, which happened to be squatting on it.
 
 REM run the server in THIS window so closing the window cleanly stops it
 %PY% server.py

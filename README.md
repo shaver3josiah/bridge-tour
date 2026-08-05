@@ -21,7 +21,9 @@ Double-click **`start.bat`**, or:
 python server.py
 ```
 
-Then open <http://localhost:7360>. A sample tour is copied in on first run so
+It opens in your browser by itself, normally at <http://localhost:7370> —
+if that port is taken it steps to the next free one and says so (add
+`--no-browser` to skip the auto-open). A sample tour is copied in on first run so
 there is something to walk through before you own any 360 photos; delete it
 whenever, and it stays deleted.
 
