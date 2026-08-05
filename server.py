@@ -346,10 +346,21 @@ def handle_repo_file(handler: "Handler", folder: str, name: str) -> None:
     send_file(handler, path, content_type)
 
 
+_LAN_CACHE: Optional[list[str]] = None
+
+
 def lan_addresses() -> list[str]:
     """Best-effort list of this machine's LAN addresses, for the Share panel.
     A UDP connect never sends a packet; it just makes the OS pick the outward
-    interface, which is the address a phone on the same wifi can reach."""
+    interface, which is the address a phone on the same wifi can reach.
+
+    Cached for the process lifetime: gethostbyname_ex is a real resolver
+    call, and on a box whose own hostname does not resolve locally it can
+    stall for the DNS timeout. Once is survivable; once per health request
+    is a dead share panel in exactly the LAN mode this exists for."""
+    global _LAN_CACHE
+    if _LAN_CACHE is not None:
+        return _LAN_CACHE
     found: list[str] = []
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
@@ -369,6 +380,7 @@ def lan_addresses() -> list[str]:
                 found.append(addr)
     except OSError:
         pass
+    _LAN_CACHE = found
     return found
 
 
@@ -480,23 +492,37 @@ def handle_tour_delete(handler: "Handler", tour_id: str) -> None:
         send_error(handler, 404, "not_found", "tour not found")
         return
     dest = trash_dir() / (tour_id + "-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"))
+    moved = False
     with TOURS_IO_LOCK:  # a save holds this while writing; never move mid-write
         if not (tdir / "tour.json").exists():
             send_error(handler, 404, "not_found", "tour not found")
             return
         dest.parent.mkdir(parents=True, exist_ok=True)
         try:
-            shutil.move(str(tdir), str(dest))
-            # A rename keeps the directory's own mtime, which is roughly when
-            # the tour was CREATED — so pruning by mtime would give a tour
-            # older than the keep window a zero-day regret period, deleting it
-            # for good at the very next boot. Stamp the move time on it; the
-            # clock the prune reads must be the clock the delete set.
+            # os.rename, not shutil.move: .trash lives inside tours/, so this
+            # is always a same-volume rename. move's failure fallback is a full
+            # copy of the tour — gigabytes of work this global lock must never
+            # be held across, and its half-copied wreckage in the trash was
+            # worse than the plain erase below.
+            os.rename(tdir, dest)
+            moved = True
+        except OSError:
+            pass
+    if moved:
+        # A rename keeps the directory's own mtime — roughly when the tour was
+        # CREATED — and pruning by that would give any tour older than the
+        # keep window a zero-day regret period. Stamped in its OWN try, not
+        # the rename's: the clock the prune reads must be the clock the
+        # delete set, whatever else goes wrong around it.
+        try:
             os.utime(dest, None)
         except OSError:
-            # a locked file (antivirus, an open explorer window) must not leave
-            # the tour half-moved and still listed - fall back to erasing
-            shutil.rmtree(tdir, ignore_errors=True)
+            pass
+    else:
+        # a locked file (antivirus, an open explorer window) must not leave the
+        # tour half-moved and still listed — fall back to erasing, outside the
+        # lock, because rmtree of a big tour takes seconds
+        shutil.rmtree(tdir, ignore_errors=True)
     send_json(handler, 200, {"ok": True})
 
 
@@ -696,10 +722,14 @@ def handle_tour_import(handler: "Handler") -> None:
         handler.close_connection = True  # body was never read; keep-alive would misparse it
         return
     content_type = handler.headers.get("Content-Type", "")
-    if "zip" not in content_type and "octet-stream" not in content_type:
-        # Also the cheapest cross-origin guard this route gets: a browser can
-        # fire a no-preflight POST at localhost from any web page, but only
-        # with the simple content types — and none of those pass this test.
+    if content_type and "zip" not in content_type and "octet-stream" not in content_type:
+        # A soft guard, honestly sized: it refuses the no-preflight content
+        # types a hostile page can send blind (text/plain, the form
+        # encodings) — the decompression budgets below are the real defense.
+        # An ABSENT header stays welcome, because the browser omits it when a
+        # picked file has no extension mapping, which is exactly a backup
+        # that lost its .zip suffix in transit — and that file imported fine
+        # before this gate existed.
         send_error(handler, 400, "bad_request", "expected a zip upload")
         handler.close_connection = True
         return
@@ -753,18 +783,21 @@ def handle_tour_import(handler: "Handler") -> None:
                 return
             fresh = new_tour(str(doc.get("name") or "Imported tour"))
             tdir = tour_dir(fresh["id"])
-            files_dir = tdir / "files"
-            files_dir.mkdir(parents=True, exist_ok=True)
-            # Containment is "referenced anywhere in the doc", the same rule
-            # prune_tour_files lives by — scene photos and thumbs, but also
-            # hotspot close-ups, narration clips, background audio, the logo.
-            # An allowlist of specific fields silently dropped all but the
-            # first two, which was data loss on the exact backup path this
-            # route exists for.
-            blob = json.dumps(doc)
-            budget = MAX_IMPORT_BYTES  # decompressed total; DEFLATE reaches 1000:1
-            copied = 0
+            # Everything from here on sits inside the cleanup try: the tour
+            # exists on disk the moment new_tour returns, so from that moment
+            # any failure — even the mkdir — must take the orphan with it.
             try:
+                files_dir = tdir / "files"
+                files_dir.mkdir(parents=True, exist_ok=True)
+                # Containment is "referenced anywhere in the doc", the same
+                # rule prune_tour_files lives by — scene photos and thumbs,
+                # but also hotspot close-ups, narration clips, background
+                # audio, the logo. An allowlist of specific fields silently
+                # dropped all but the first two, which was data loss on the
+                # exact backup path this route exists for.
+                blob = json.dumps(doc)
+                budget = MAX_IMPORT_BYTES  # decompressed total; DEFLATE reaches 1000:1
+                copied = 0
                 for name in names:
                     if not name.startswith("files/"):
                         continue

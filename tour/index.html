@@ -3680,14 +3680,20 @@ async function renderViewer(tourId) {
         stage.removeEventListener('pointermove', dragging);
         stage.removeEventListener('wheel', done);
         window.removeEventListener('keydown', done);
+        virtualTour.removeEventListener('node-changed', walked);
         dismiss();
       };
       stage.addEventListener('pointermove', dragging);
       stage.addEventListener('wheel', done, { passive: true });
       window.addEventListener('keydown', done);
-      /* walking through an arrow is the other thing the sentence teaches,
-         and doing it proves the lesson landed */
-      virtualTour.addEventListener('node-changed', done, { once: true });
+      /* Walking through an arrow is the other thing the sentence teaches,
+         and doing it proves the lesson landed. Guarded on fromNode, because
+         the plugin also fires node-changed once while loading the START
+         node — with fromNode empty — and dismissing on that killed the hint
+         at panorama-load time on every first visit, the same way listening
+         to position-updated once did. */
+      const walked = e => { if (e.data?.fromNode) done(); };
+      virtualTour.addEventListener('node-changed', walked);
       setTimeout(done, 8000);
     }
   }
