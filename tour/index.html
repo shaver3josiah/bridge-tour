@@ -1658,6 +1658,39 @@ const FACE_MIN_SHARE = 0.015;
 const FACE_MAX_SHARE = 0.45;
 const FACE_MIN_FOCUS = 0.5;   /* 1 = every skin pixel in one direction */
 
+/* ---------- the arm, which is the better signal ----------
+
+   Somebody standing under the camera and PUNCHING an arm out at what they
+   want photographed is a deliberate instruction, where the tilt of their head
+   is only an inference. So the arm is read first and the head is the fallback.
+
+   The geometry that makes it findable: everything belonging to a person
+   directly underfoot sits near the nadir, and how far a thing is from the
+   nadir in ELEVATION is how far it reaches out from them on the ground. A
+   crown of a head is a small disc at the very bottom of the frame. An
+   outstretched arm breaks that disc — bare forearm and fist reaching up out of
+   the sleeve, at one azimuth only. So: per column, the highest skin in the
+   band; the column where skin climbs furthest is the fist, and its azimuth is
+   the bearing being pointed at.
+
+   The band has to be generous, because an arm held out at chest height from a
+   camera half a metre overhead lands nearer the horizon than underfoot — which
+   also drags in a lot of ground. That is fine and deliberate: ground fills the
+   band EVENLY, so it lifts every column's reach together and no column stands
+   out. It is the localised spike that means an arm, not the presence of skin.
+
+   ponytail: gated on hi-vis being underfoot too. Rust, bare timber and dry
+   soil all pass a colour test for skin, and one stain in one direction would
+   otherwise read as a fist pointing at it. Requiring a vest under the camera
+   is the cheap way to ask "is there even a person here", and on a bridge the
+   answer is worn by law. In a living room it will simply decline to read an
+   arm and fall back to the head — the upgrade path is a limb detector, and
+   that is a model, not a threshold. */
+const ARM_BAND_ALT = -25;      /* how near the horizon an outstretched arm can land */
+const ARM_MIN_STICKOUT = 8;    /* degrees the fist must beat the body's own reach by */
+const ARM_MIN_VEST = 0.01;     /* share of the underfoot band wearing hi-vis */
+const ARM_MIN_SKIN = 6;        /* columns of bare arm; fewer is a speck */
+
 /* How far a pixel has to depart from the deck's own colour to count as
    something standing on it, and how much of a column has to depart before the
    column counts. Brightness OR saturation, never darkness — a shadow is the
@@ -1798,29 +1831,95 @@ function panoProfile(image, { hFov = 360, tilt = 0 } = {}) {
     }
   }
 
-  /* ---- which way the one under the camera is looking ----
-     See SKIN_MIN_RED above for what this is and what it is not. */
+  /* ---- which way the one under the camera is pointing ----
+     The arm first, the head second. See ARM_BAND_ALT above for why the arm is
+     found by REACH rather than by colour alone, and SKIN_MIN_RED for what this
+     colour test is and is not. */
+  const isSkin = (x, y) => {
+    const i = (y * W + x) * 4;
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    return r >= SKIN_MIN_RED && g >= 40 && b >= 20 && r > b && r - g >= SKIN_MIN_WARMTH
+      && Math.max(r, g, b) - Math.min(r, g, b) > 15;
+  };
   let facing = null;
+  let facingFrom = null;
   {
-    const top = rowAt(UNDERFOOT_ALT);
+    const underTop = rowAt(UNDERFOOT_ALT);
     /* a phone strip that never looks further down than the parapet has no
        underfoot to read, and clamping would otherwise hand back its last row */
-    if (H - top >= 3 && altAt(H - 1) < UNDERFOOT_ALT) {
-      let sx = 0, sy = 0, n = 0;
-      for (let y = top; y < H; y++) {
+    const hasUnderfoot = H - underTop >= 3 && altAt(H - 1) < UNDERFOOT_ALT;
+
+    /* is anybody actually down there? */
+    let vestUnder = 0;
+    if (hasUnderfoot) {
+      for (let y = underTop; y < H; y++) {
         for (let x = 0; x < W; x++) {
           const i = (y * W + x) * 4;
-          const r = d[i], g = d[i + 1], b = d[i + 2];
-          if (r < SKIN_MIN_RED || g < 40 || b < 20 || r <= b || r - g < SKIN_MIN_WARMTH
-            || Math.max(r, g, b) - Math.min(r, g, b) <= 15) continue;
+          const m = Math.max(d[i], d[i + 1]);
+          if (m >= HIVIS_MIN_VALUE && m - d[i + 2] >= m * HIVIS_MIN_SAT && d[i + 1] >= d[i] * 0.4) vestUnder++;
+        }
+      }
+    }
+    const somebodyThere = hasUnderfoot
+      && vestUnder / (W * (H - underTop)) >= ARM_MIN_VEST;
+
+    if (somebodyThere) {
+      const bandTop = rowAt(ARM_BAND_ALT);
+      /* how far out from underfoot skin climbs, per direction */
+      const reach = new Float64Array(W).fill(-90);
+      let armColumns = 0;
+      for (let x = 0; x < W; x++) {
+        for (let y = bandTop; y < H; y++) {
+          if (!isSkin(x, y)) continue;
+          reach[x] = altAt(y);
+          armColumns++;
+          break; /* the FIRST skin from the top is the furthest it reaches */
+        }
+      }
+      /* an arm subtends a few degrees, so one hot column is noise */
+      const smoothed = smooth(reach, Math.max(1, Math.round(W * 0.02)));
+      /* The body's own outline, measured over the directions that HAVE skin.
+         Taking the median over every column instead compares the arm against
+         the empty ground, which any skin at all beats — a bare crown of a head
+         then reads as a fist punching at whatever the face happens to face. */
+      const withSkin = [...reach].filter(v => v > -90).sort((a, b) => a - b);
+      const body = withSkin.length ? withSkin[withSkin.length >> 1] : -90;
+      let peak = -Infinity;
+      for (let x = 0; x < W; x++) if (smoothed[x] > peak) peak = smoothed[x];
+      if (withSkin.length >= ARM_MIN_SKIN && peak - body >= ARM_MIN_STICKOUT) {
+        /* Circular mean of the whole crest, not the first column that hits it.
+           A fist is several columns wide, so the crest is a plateau and
+           argmax would hand back its leading EDGE — a bearing biased half an
+           arm's width anticlockwise, every time. Circular for the usual
+           reason: a fist across the 0/360 seam averages to the far side. */
+        let sx = 0, sy = 0, n = 0;
+        for (let x = 0; x < W; x++) {
+          if (smoothed[x] < peak - 0.5) continue;
+          const th = 2 * Math.PI * (x + 0.5) / W;
+          sx += Math.cos(th); sy += Math.sin(th); n++;
+        }
+        facing = yawAt(((Math.atan2(sy, sx) / (2 * Math.PI)) * W % W + W) % W);
+        facingFrom = 'arm';
+      }
+    }
+
+    /* Nobody pointing: fall back to the crown of the head. From directly above,
+       the only skin up there is the face — forehead, nose, cheeks — and it sits
+       at the bearing they are turned to. */
+    if (facing === null && hasUnderfoot) {
+      let sx = 0, sy = 0, n = 0;
+      for (let y = underTop; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          if (!isSkin(x, y)) continue;
           const th = 2 * Math.PI * (x + 0.5) / W;
           sx += Math.cos(th); sy += Math.sin(th); n++;
         }
       }
-      const share = n / (W * (H - top));
+      const share = n / (W * (H - underTop));
       const focus = n ? Math.hypot(sx, sy) / n : 0;
       if (share >= FACE_MIN_SHARE && share <= FACE_MAX_SHARE && focus >= FACE_MIN_FOCUS) {
         facing = yawAt(((Math.atan2(sy, sx) / (2 * Math.PI)) * W % W + W) % W);
+        facingFrom = 'face';
       }
     }
   }
@@ -1890,7 +1989,7 @@ function panoProfile(image, { hFov = 360, tilt = 0 } = {}) {
     }
   }
 
-  return { W, hFov, wall, floor, sun, person, facing, vehicle };
+  return { W, hFov, wall, floor, sun, person, facing, facingFrom, vehicle };
 }
 
 /* Where the photo suggests you can walk. Reads the bands panoProfile built;
@@ -1952,7 +2051,9 @@ function guessNavigableYaws(profile, count = 3) {
 function openingView(profile) {
   const p = profile?.person;
   if (p && p.alt > UNDERFOOT_ALT) return { yaw: p.yaw, pitch: 0, from: 'person' };
-  if (Number.isFinite(profile?.facing)) return { yaw: profile.facing, pitch: 0, from: 'facing' };
+  if (Number.isFinite(profile?.facing)) {
+    return { yaw: profile.facing, pitch: 0, from: profile.facingFrom === 'arm' ? 'arm' : 'facing' };
+  }
   return null;
 }
 
@@ -6588,7 +6689,9 @@ async function renderEditor(tourId) {
     }
     const guessedView = {
       person: 'Opens facing someone in hi-vis, on the assumption they are at whatever is being inspected.',
-      facing: 'Nobody was standing out in this one, so it opens whichever way the person under the camera'
+      arm: 'Opens where the person under the camera was pointing — an arm thrown out at something is the'
+        + ' one instruction in a photo that was meant for whoever reads it later.',
+      facing: 'Nobody was pointing in this one, so it opens whichever way the person under the camera'
         + ' was looking, read off the top of their head at the base of the photo.',
     }[s.viewFrom];
     if (guessedView) {

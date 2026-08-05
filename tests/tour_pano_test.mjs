@@ -542,6 +542,77 @@ check(panoProfile(rgbPano((x, y) =>
 check(panoProfile(rgbPano(() => SKIN), { hFov: 90 }).facing === null,
   'a narrow strip that never looks down that far reports no facing');
 
+/* ---------- somebody punching at what they want photographed ----------
+ * The field photos this was built from: an inspector directly under the
+ * camera, hi-vis on, one arm thrown out at the thing worth a picture. The
+ * crown of the head is a small disc at the very bottom of the frame; the bare
+ * forearm and fist climb out of the sleeve toward the horizon, at ONE azimuth.
+ * So the reading is reach, not colour: the direction skin climbs furthest.
+ *
+ * Rows below 82 in a 256x128 equirect are the band an outstretched arm can
+ * land in (ARM_BAND_ALT = -25 degrees); rows below 103 are underfoot. */
+
+const HEAD_ROWS = [120, 128];   /* a crown, hard against the nadir */
+const ARM_ROWS = [86, 128];     /* a limb climbing out toward the horizon */
+const inBand = (y, rows) => y >= rows[0] && y < rows[1];
+
+/* vest all round the nadir + a head disc + one arm out at column 200 */
+const pointing = (armFrom, armTo, opts = {}) => rgbPano((x, y, Wp, Hp) => {
+  const across = (a, b) => (a <= b ? (x >= a && x < b) : (x >= a || x < b));
+  if (!opts.noArm && across(armFrom, armTo) && inBand(y, ARM_ROWS)) return SKIN;
+  if (across(96, 160) && inBand(y, HEAD_ROWS)) return SKIN;          /* the face on the crown */
+  if (!opts.noVest && y >= 112) return VEST;                          /* shoulders, all round */
+  return CONCRETE;
+});
+
+const armAt = (from, to) => panoProfile(pointing(from, to));
+const punch = armAt(196, 212);
+const punchYaw = wrap180(204 / 256 * 360 - 180);
+check(punch.facingFrom === 'arm', `an outstretched arm is read as an arm (got ${punch.facingFrom})`);
+check(punch.facing !== null && Math.abs(wrap180(punch.facing - punchYaw)) <= 6,
+  `and the bearing is the fist's, ${punchYaw.toFixed(1)} (got ${punch.facing})`);
+
+/* THE EDGE BIAS. A fist is several columns wide, so the crest of the reach is
+   a plateau; taking the first column that hits the maximum hands back its
+   leading edge instead of its middle — every bearing wrong by half an arm,
+   always the same way, which is the kind of error that looks like a
+   calibration problem for a year. */
+const wideFist = armAt(180, 228);
+check(wideFist.facing !== null && Math.abs(wrap180(wideFist.facing - wrap180(204 / 256 * 360 - 180))) <= 6,
+  `a wide fist reads from the middle of the crest, not its edge (got ${wideFist.facing})`);
+
+/* the seam, again: an arm thrown out across 0/360 must not average to the
+   opposite side of the sphere */
+const seamArm = armAt(248, 8);
+check(seamArm.facingFrom === 'arm' && Math.abs(seamArm.facing) > 172,
+  `an arm across the 0/360 seam points at the seam (got ${seamArm.facing})`);
+
+/* no arm: the crown is all there is, and the face rule takes over rather than
+   calling the head's own outline a punch */
+const noArm = panoProfile(pointing(0, 0, { noArm: true }));
+check(noArm.facingFrom === 'face',
+  `with no arm out, the head is read as a head (got ${noArm.facingFrom})`);
+check(noArm.facing !== null && Math.abs(wrap180(noArm.facing - wrap180(128 / 256 * 360 - 180))) <= 8,
+  `and it still says which way the face is turned (got ${noArm.facing})`);
+
+/* THE REFUSAL THAT MATTERS. Rust, bare timber and dry soil all pass a colour
+   test for skin. One stain in one direction has exactly the shape of an arm,
+   and the only cheap thing separating them is whether a person is there at
+   all — which on a bridge is worn by law. */
+const noPerson = panoProfile(pointing(196, 212, { noVest: true }));
+check(noPerson.facingFrom !== 'arm',
+  'a skin-coloured stain with nobody under the camera is not read as a pointing arm');
+
+/* and the arm beats the head when both are there: the punch is deliberate,
+   the tilt of a head is an inference */
+check(punch.facing !== null && Math.abs(wrap180(punch.facing - wrap180(128 / 256 * 360 - 180))) > 30,
+  'the arm wins over the face it disagrees with, because one of them is a decision');
+
+/* the plate opens on it, and says which signal it read */
+const aimedByArm = openingView(punch);
+check(aimedByArm?.from === 'arm' && Math.abs(wrap180(aimedByArm.yaw - punchYaw)) <= 6,
+  `the scene opens where the fist points (got ${aimedByArm?.from} ${aimedByArm?.yaw})`);
+
 /* ---------- which of those two aims the scene ---------- */
 
 const inspectorProfile = panoProfile(rgbPano((x, y, Wp, Hp) =>

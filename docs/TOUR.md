@@ -326,6 +326,26 @@ A forty-panorama bridge is a maze, so:
   another sighting. Ctrl+Z undoes a turn. Where a hand aim overrules a bearing
   the camera measured, the number it replaced is kept and printed in **This
   scene**, so a measurement is never silently lost.
+  **A photo opens where somebody pointed.** Whoever holds the stick stands
+  directly under the camera, so their head lands at the base of the frame — and
+  if they throw an arm out at what they want photographed, that is the one
+  instruction in the picture aimed at whoever reads it a year later. The
+  editor reads it: everything belonging to a person underfoot sits near the
+  nadir, and how far above the nadir a thing appears is how far it reaches out
+  from them on the ground, so the direction bare skin climbs furthest is the
+  fist. The scene opens on that bearing, level with the horizon.
+
+  Failing a pointed arm, it falls back to the crown of the head — from directly
+  above, the only skin up there is the face, and it sits at the bearing they
+  are turned to. Failing both, it opens on somebody in hi-vis standing out in
+  the scene. **This scene** always says which of the three it read.
+
+  It refuses rather than guesses when nobody is under the camera at all: rust,
+  bare timber and dry soil all pass a colour test for skin, and one stain in
+  one direction has exactly the shape of an arm. The cheap question that
+  separates them is whether a person is there — which on a bridge is worn by
+  law, and in a living room means it will decline and use the head instead.
+
   **Bearings fill themselves in.** A photo that has none gets one worked out
   from two means that need nothing from the camera. This is not a button: it
   runs whenever the evidence changes — photos arriving, links being drawn, a
